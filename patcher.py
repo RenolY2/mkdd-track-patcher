@@ -11,6 +11,7 @@ from track_mapping import arc_mapping, file_mapping, bsft
 from dolreader import *
 from rarc import Archive, write_pad32, write_uint32
 from readbsft import BSFT
+from zip_helper import ZipToIsoPatcher
 
 GAMEID_TO_REGION = {
     b"GM4E": "US",
@@ -258,10 +259,16 @@ class Application(tk.Frame):
         isopath = self.input_iso_path.path.get()
         iso = GCM(isopath)
         iso.read_entire_disc()
-            
+        
+        patcher = ZipToIsoPatcher(None, iso)
+        
+        
         for track in self.input_track_path.get_paths():
             print(track)
             trackzip = zipfile.ZipFile(track)
+            patcher.zip = trackzip 
+            
+            
             config = configparser.ConfigParser()
             trackinfo = trackzip.open("trackinfo.ini")
             config.read_string(str(trackinfo.read(), encoding="utf-8"))
@@ -282,24 +289,16 @@ class Application(tk.Frame):
             
             
             # Patch minimap settings in dol 
-            if "sys/main.dol" not in iso.changed_files:
-                dol = DolFile(iso.read_file_data("sys/main.dol"))
-            else:
-                dol = DolFile(iso.changed_files["sys/main.dol"])
+            dol = DolFile(patcher.get_iso_file("sys/main.dol"))
             patch_minimap_dol(dol, replace, region, minimap_settings)
             dol._rawdata.seek(0)
-            iso.changed_files["sys/main.dol"] = dol._rawdata
+            patcher.change_file("sys/main.dol", dol._rawdata)
             
             bigname, smallname = arc_mapping[replace]
             _, _, bigbanner, smallbanner, trackname, trackimage = file_mapping[replace]
             normal_music, fast_music = file_mapping[replace_music][0:2]
             # Copy staff ghost 
-            try:
-                staffghost = trackzip.open("staffghost.ght")
-            except KeyError:
-                pass 
-            else:
-                iso.changed_files["files/StaffGhosts/{}.ght".format(bigname)] = staffghost
+            patcher.copy_file("staffghost.ght", "files/StaffGhosts/{}.ght".format(bigname))
             
             # Copy track arc 
             track_arc = Archive.from_file(trackzip.open("track.arc"))
@@ -313,8 +312,9 @@ class Application(tk.Frame):
             newarc_mp = BytesIO()
             track_mp_arc.write_arc_uncompressed(newarc_mp)
             
-            iso.changed_files["files/Course/{}.arc".format(bigname)] = newarc
-            iso.changed_files["files/Course/{}L.arc".format(bigname)] = newarc_mp 
+            patcher.change_file("files/Course/{}.arc".format(bigname), newarc)
+            patcher.change_file("files/Course/{}L.arc".format(bigname), newarc_mp)
+             
             print("replacing", "files/Course/{}.arc".format(bigname))
             if bigname == "Luigi2":
                 bigname = "Luigi"
@@ -322,135 +322,38 @@ class Application(tk.Frame):
                 smallname = "luigi"
             # Copy language images 
             missing_languages = []
-           
-            
-            for language in LANGUAGES:
-                try:
-                    trackzip.getinfo("course_images/{}/".format(language))
-                except KeyError:
-                    missing_languages.append(language)
-                    continue 
-                
-                coursename_arc_path = "files/SceneData/{}/coursename.arc".format(language)
-                courseselect_arc_path = "files/SceneData/{}/courseselect.arc".format(language)
-                if not iso.file_exists(coursename_arc_path):
-                    continue 
-                
-                print("Found language", language)
-                
-                
-                if coursename_arc_path not in iso.changed_files:
-                    coursename_arc = Archive.from_file(iso.read_file_data(coursename_arc_path))
-                else:
-                    coursename_arc = Archive.from_file(iso.changed_files[coursename_arc_path])
-                    
-                if courseselect_arc_path not in iso.changed_files:
-                    courseselect_arc = Archive.from_file(iso.read_file_data(courseselect_arc_path))
-                else:
-                    courseselect_arc = Archive.from_file(iso.changed_files[courseselect_arc_path])
-                
-                try:
-                    banner = trackzip.open("course_images/{}/track_big_logo.bti".format(language))
-                except FileNotFoundError:
-                    pass 
-                finally:
-                    iso.changed_files["files/CourseName/{}/{}_name.bti".format(language, bigname)] = banner
-                
-                try:
-                    banner = trackzip.open("course_images/{}/track_small_logo.bti".format(language))
-                except FileNotFoundError:
-                    pass 
-                finally:
-                    file = coursename_arc["coursename/timg/{}_names.bti".format(smallname)]
-                    file.seek(0)
-                    file.write(banner.read())
-                    file.truncate()
-                    
-                try:
-                    name = trackzip.open("course_images/{}/track_name.bti".format(language))
-                except FileNotFoundError:
-                    pass 
-                finally:
-                    file = courseselect_arc["courseselect/timg/{}".format(trackname)]
-                    file.seek(0)
-                    file.write(name.read())
-                    file.truncate()
-                
-                try:
-                    image = trackzip.open("course_images/{}/track_image.bti".format(language))
-                except FileNotFoundError:
-                    pass 
-                finally:
-                    file = courseselect_arc["courseselect/timg/{}".format(trackimage)]
-                    file.seek(0)
-                    file.write(image.read())
-                    file.truncate()
-                
-                newarc = BytesIO()
-                coursename_arc.write_arc_uncompressed(newarc)
-                newarc.seek(0)
-                
-                newarc_mp = BytesIO()
-                courseselect_arc.write_arc_uncompressed(newarc_mp)
-                newarc_mp.seek(0)
-                iso.changed_files["files/SceneData/{}/coursename.arc".format(language)] = newarc
-                iso.changed_files["files/SceneData/{}/courseselect.arc".format(language)] = newarc_mp 
-            
             main_language = config["Config"]["main_language"]
-            for language in missing_languages:
-                coursename_arc_path = "files/SceneData/{}/coursename.arc".format(language)
-                courseselect_arc_path = "files/SceneData/{}/courseselect.arc".format(language)
+            
+            for srclanguage in LANGUAGES:
+                dstlanguage = srclanguage
+                if not patcher.src_file_exists("course_images/{}/".format(srclanguage)):
+                    #missing_languages.append(srclanguage)
+                    #continue
+                    srclanguage = main_language
+                
+                
+                coursename_arc_path = "files/SceneData/{}/coursename.arc".format(dstlanguage)
+                courseselect_arc_path = "files/SceneData/{}/courseselect.arc".format(dstlanguage)
                 if not iso.file_exists(coursename_arc_path):
                     continue 
-                print("Copying", main_language, "to", language)
                 
-                if coursename_arc_path not in iso.changed_files:
-                    coursename_arc = Archive.from_file(iso.read_file_data(coursename_arc_path))
-                else:
-                    coursename_arc = Archive.from_file(iso.changed_files[coursename_arc_path])
-                    
-                if courseselect_arc_path not in iso.changed_files:
-                    courseselect_arc = Archive.from_file(iso.read_file_data(courseselect_arc_path))
-                else:
-                    courseselect_arc = Archive.from_file(iso.changed_files[courseselect_arc_path])
+                #print("Found language", language)
                 
-                try:
-                    banner = trackzip.open("course_images/{}/track_big_logo.bti".format(main_language))
-                except FileNotFoundError:
-                    pass 
-                finally:
-                    iso.changed_files["files/CourseName/{}/{}_name.bti".format(language, bigname)] = banner
                 
-                try:
-                    banner = trackzip.open("course_images/{}/track_small_logo.bti".format(main_language))
-                except FileNotFoundError:
-                    pass 
-                finally:
-                    file = coursename_arc["coursename/timg/{}_names.bti".format(smallname)]
-                    file.seek(0)
-                    file.write(banner.read())
-                    file.truncate()
-                    
-                try:
-                    name = trackzip.open("course_images/{}/track_name.bti".format(main_language))
-                except KeyError:
-                    pass 
-                else:
-                    file = courseselect_arc["courseselect/timg/{}".format(trackname)]
-                    file.seek(0)
-                    file.write(name.read())
-                    file.truncate()
-                
-                try:
-                    image = trackzip.open("course_images/{}/track_image.bti".format(main_language))
-                except KeyError:
-                    pass 
-                else:
-                    file = courseselect_arc["courseselect/timg/{}".format(trackimage)]
-                    file.seek(0)
-                    file.write(image.read())
-                    file.truncate()
-                
+                coursename_arc = Archive.from_file(patcher.get_iso_file(coursename_arc_path))
+                courseselect_arc = Archive.from_file(patcher.get_iso_file(courseselect_arc_path))
+
+                patcher.copy_file("course_images/{}/track_big_logo.bti".format(srclanguage),
+                                "files/CourseName/{}/{}_name.bti".format(dstlanguage, bigname))
+
+                patcher.copy_file_into_arc("course_images/{}/track_small_logo.bti".format(srclanguage),
+                            coursename_arc, "coursename/timg/{}_names.bti".format(smallname))
+                patcher.copy_file_into_arc("course_images/{}/track_name.bti".format(srclanguage),
+                            courseselect_arc, "courseselect/timg/{}".format(trackname))
+                patcher.copy_file_into_arc("course_images/{}/track_image.bti".format(srclanguage),
+                            courseselect_arc, "courseselect/timg/{}".format(trackimage))
+
+
                 newarc = BytesIO()
                 coursename_arc.write_arc_uncompressed(newarc)
                 newarc.seek(0)
@@ -458,24 +361,21 @@ class Application(tk.Frame):
                 newarc_mp = BytesIO()
                 courseselect_arc.write_arc_uncompressed(newarc_mp)
                 newarc_mp.seek(0)
-                iso.changed_files["files/SceneData/{}/coursename.arc".format(language)] = newarc
-                iso.changed_files["files/SceneData/{}/courseselect.arc".format(language)] = newarc_mp 
-            # Normal pace music 
-            try:
-                track_normal = trackzip.open("lap_music_normal.ast")
-            except KeyError:
-                pass 
-            else:
-                iso.change_or_add_file("files/AudioRes/Stream/{}".format(normal_music), track_normal)
-                
-            # Fast pace music 
-            try:
-                track_fast = trackzip.open("lap_music_fast.ast")
-            except KeyError:
-                pass 
-            else:
-                iso.change_or_add_file("files/AudioRes/Stream/{}".format(fast_music), track_fast)
-            print(iso.changed_files.keys())
+                patcher.change_file("files/SceneData/{}/coursename.arc".format(dstlanguage), newarc)
+                patcher.change_file("files/SceneData/{}/courseselect.arc".format(dstlanguage), newarc_mp) 
+            
+            
+            # Copy over the normal and fast music
+            # Note: if the fast music is missing, the normal music is used as fast music 
+            # and vice versa. If both are missing, no copying is happening due to behaviour of
+            # copy_or_add_file function
+            patcher.copy_or_add_file("lap_music_normal.ast", "files/AudioRes/Stream/{}".format(normal_music))
+            patcher.copy_or_add_file("lap_music_fast.ast", "files/AudioRes/Stream/{}".format(fast_music))
+            if not patcher.src_file_exists("lap_music_normal.ast"):
+                patcher.copy_or_add_file("lap_music_fast.ast", "files/AudioRes/Stream/{}".format(normal_music))
+            if not patcher.src_file_exists("lap_music_fast.ast"):
+                patcher.copy_or_add_file("lap_music_normal.ast", "files/AudioRes/Stream/{}".format(fast_music))
+
         patch_baa(iso)
         print("loaded")
         print("writing iso")
