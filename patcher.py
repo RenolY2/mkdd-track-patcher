@@ -202,6 +202,7 @@ class Application(tk.Frame):
     def __init__(self, master=None):
         super().__init__(master)
         self.master = master
+        
         self.pack()
         self.create_widgets()
     
@@ -218,7 +219,7 @@ class Application(tk.Frame):
     def create_widgets(self):
         self.input_iso_path = ChooseFilePath(self, description="MKDD ISO", file_chosen_callback=self.update_path)
         
-        self.input_track_path = ChooseFilePathMultiple(self, description="Race track zip")
+        self.input_mod_path = ChooseFilePathMultiple(self, description="Race track/Mod zip")
         
         self.output_iso_path = ChooseFilePath(self, description="New ISO", save=True)
         
@@ -237,14 +238,14 @@ class Application(tk.Frame):
     
     def patch(self):
         print("Input iso:", self.input_iso_path.path.get())
-        print("Input track:", self.input_track_path.path.get())
+        print("Input track:", self.input_mod_path.path.get())
         print("Output iso:", self.output_iso_path.path.get())
         
         if not self.input_iso_path.path.get():
             messagebox.showerror("Error", "You need to choose a MKDD ISO or GCM.")
             return 
-        if not self.input_track_path.get_paths():
-            messagebox.showerror("Error", "You need to choose a MKDD Race Track zip file.")
+        if not self.input_mod_path.get_paths():
+            messagebox.showerror("Error", "You need to choose a MKDD Track/Mod zip file.")
             return 
         
         with open(self.input_iso_path.path.get(), "rb") as f:
@@ -262,121 +263,182 @@ class Application(tk.Frame):
         
         patcher = ZipToIsoPatcher(None, iso)
         
+        at_least_1_track = False 
         
-        for track in self.input_track_path.get_paths():
+        for track in self.input_mod_path.get_paths():
             print(track)
             trackzip = zipfile.ZipFile(track)
             patcher.zip = trackzip 
             
             
             config = configparser.ConfigParser()
-            trackinfo = trackzip.open("trackinfo.ini")
-            config.read_string(str(trackinfo.read(), encoding="utf-8"))
-            
-            #use_extended_music = config.getboolean("Config", "extended_music_slots")
-            replace = config["Config"]["replaces"].strip()
-            replace_music = config["Config"]["replaces_music"].strip()
-            
-            print("Imported Track Info:")
-            print("Track '{0}' created by {1} replaces {2}".format(
-                config["Config"]["trackname"], config["Config"]["author"], config["Config"]["replaces"])
-                )
-            
-            minimap_settings = json.load(trackzip.open("minimap.json"))
-            
-            
-            
-            
-            
-            # Patch minimap settings in dol 
-            dol = DolFile(patcher.get_iso_file("sys/main.dol"))
-            patch_minimap_dol(dol, replace, region, minimap_settings)
-            dol._rawdata.seek(0)
-            patcher.change_file("sys/main.dol", dol._rawdata)
-            
-            bigname, smallname = arc_mapping[replace]
-            _, _, bigbanner, smallbanner, trackname, trackimage = file_mapping[replace]
-            normal_music, fast_music = file_mapping[replace_music][0:2]
-            # Copy staff ghost 
-            patcher.copy_file("staffghost.ght", "files/StaffGhosts/{}.ght".format(bigname))
-            
-            # Copy track arc 
-            track_arc = Archive.from_file(trackzip.open("track.arc"))
-            track_mp_arc = Archive.from_file(trackzip.open("track_mp.arc"))
-            rename_archive(track_arc, smallname, False)
-            rename_archive(track_mp_arc, smallname, True)
-            
-            newarc = BytesIO()
-            track_arc.write_arc_uncompressed(newarc)
-            
-            newarc_mp = BytesIO()
-            track_mp_arc.write_arc_uncompressed(newarc_mp)
-            
-            patcher.change_file("files/Course/{}.arc".format(bigname), newarc)
-            patcher.change_file("files/Course/{}L.arc".format(bigname), newarc_mp)
-             
-            print("replacing", "files/Course/{}.arc".format(bigname))
-            if bigname == "Luigi2":
-                bigname = "Luigi"
-            if smallname == "luigi2":
-                smallname = "luigi"
-            # Copy language images 
-            missing_languages = []
-            main_language = config["Config"]["main_language"]
-            
-            for srclanguage in LANGUAGES:
-                dstlanguage = srclanguage
-                if not patcher.src_file_exists("course_images/{}/".format(srclanguage)):
-                    #missing_languages.append(srclanguage)
-                    #continue
-                    srclanguage = main_language
+            print(trackzip.namelist())
+            if patcher.src_file_exists("modinfo.ini"):
+                modinfo = trackzip.open("modinfo.ini")
+                config.read_string(str(modinfo.read(), encoding="utf-8"))
+                # patch files 
+                print(trackzip.namelist())
                 
                 
-                coursename_arc_path = "files/SceneData/{}/coursename.arc".format(dstlanguage)
-                courseselect_arc_path = "files/SceneData/{}/courseselect.arc".format(dstlanguage)
-                if not iso.file_exists(coursename_arc_path):
-                    continue 
-                
-                #print("Found language", language)
+                arcs, files = patcher.get_file_changes("files/")
+                for filepath in files:
+                    patcher.copy_file("files/"+filepath, filepath)
                 
                 
-                coursename_arc = Archive.from_file(patcher.get_iso_file(coursename_arc_path))
-                courseselect_arc = Archive.from_file(patcher.get_iso_file(courseselect_arc_path))
+                for arc, arcfiles in arcs.items():
+                    if arc == "race2d.arc":
+                        continue 
+                        
+                    srcarcpath = "files/"+arc
+                    if not iso.file_exists(srcarcpath):
+                        continue 
+                        
+                    print("Loaded arc:", arc)
+                    destination_arc = Archive.from_file(patcher.get_iso_file(srcarcpath))
 
-                patcher.copy_file("course_images/{}/track_big_logo.bti".format(srclanguage),
-                                "files/CourseName/{}/{}_name.bti".format(dstlanguage, bigname))
-
-                patcher.copy_file_into_arc("course_images/{}/track_small_logo.bti".format(srclanguage),
-                            coursename_arc, "coursename/timg/{}_names.bti".format(smallname))
-                patcher.copy_file_into_arc("course_images/{}/track_name.bti".format(srclanguage),
-                            courseselect_arc, "courseselect/timg/{}".format(trackname))
-                patcher.copy_file_into_arc("course_images/{}/track_image.bti".format(srclanguage),
-                            courseselect_arc, "courseselect/timg/{}".format(trackimage))
+                    for file in arcfiles:
+                        print("files/"+file)
+                        patcher.copy_file_into_arc("files/"+arc+"/"+file,
+                                    destination_arc, file, missing_ok=False)
 
 
+                    newarc = BytesIO()
+                    destination_arc.write_arc_uncompressed(newarc)
+                    newarc.seek(0)
+                    
+                    patcher.change_file(srcarcpath, newarc)
+                
+                if "race2d.arc" in arcs:
+                    arcfiles = arcs["race2d.arc"]
+                    print("Loaded race2d arc")
+                    mram_arc = Archive.from_file(patcher.get_iso_file("files/MRAM.arc"))
+                    
+                    race2d_arc = Archive.from_file(mram_arc["mram/race2d.arc"])
+                    
+                    for file in arcfiles:
+                        patcher.copy_file_into_arc("files/race2d.arc/"+file,
+                                    race2d_arc, file, missing_ok=False)
+                    
+                    race2d_arc_file = mram_arc["mram/race2d.arc"]
+                    race2d_arc_file.seek(0)
+                    race2d_arc.write_arc_uncompressed(race2d_arc_file)
+                    #race2d_arc_file.truncate()
+
+                    newarc = BytesIO()
+                    mram_arc.write_arc_uncompressed(newarc)
+                    newarc.seek(0)
+                    
+                    patcher.change_file("files/MRAM.arc", newarc)
+                
+            else:
+                trackinfo = trackzip.open("trackinfo.ini")
+                config.read_string(str(trackinfo.read(), encoding="utf-8"))
+                
+                #use_extended_music = config.getboolean("Config", "extended_music_slots")
+                replace = config["Config"]["replaces"].strip()
+                replace_music = config["Config"]["replaces_music"].strip()
+                
+                print("Imported Track Info:")
+                print("Track '{0}' created by {1} replaces {2}".format(
+                    config["Config"]["trackname"], config["Config"]["author"], config["Config"]["replaces"])
+                    )
+                
+                minimap_settings = json.load(trackzip.open("minimap.json"))
+                
+                
+                
+                
+                
+                # Patch minimap settings in dol 
+                dol = DolFile(patcher.get_iso_file("sys/main.dol"))
+                patch_minimap_dol(dol, replace, region, minimap_settings)
+                dol._rawdata.seek(0)
+                patcher.change_file("sys/main.dol", dol._rawdata)
+                
+                bigname, smallname = arc_mapping[replace]
+                _, _, bigbanner, smallbanner, trackname, trackimage = file_mapping[replace]
+                normal_music, fast_music = file_mapping[replace_music][0:2]
+                # Copy staff ghost 
+                patcher.copy_file("staffghost.ght", "files/StaffGhosts/{}.ght".format(bigname))
+                
+                # Copy track arc 
+                track_arc = Archive.from_file(trackzip.open("track.arc"))
+                track_mp_arc = Archive.from_file(trackzip.open("track_mp.arc"))
+                rename_archive(track_arc, smallname, False)
+                rename_archive(track_mp_arc, smallname, True)
+                
                 newarc = BytesIO()
-                coursename_arc.write_arc_uncompressed(newarc)
-                newarc.seek(0)
+                track_arc.write_arc_uncompressed(newarc)
                 
                 newarc_mp = BytesIO()
-                courseselect_arc.write_arc_uncompressed(newarc_mp)
-                newarc_mp.seek(0)
-                patcher.change_file("files/SceneData/{}/coursename.arc".format(dstlanguage), newarc)
-                patcher.change_file("files/SceneData/{}/courseselect.arc".format(dstlanguage), newarc_mp) 
-            
-            
-            # Copy over the normal and fast music
-            # Note: if the fast music is missing, the normal music is used as fast music 
-            # and vice versa. If both are missing, no copying is happening due to behaviour of
-            # copy_or_add_file function
-            patcher.copy_or_add_file("lap_music_normal.ast", "files/AudioRes/Stream/{}".format(normal_music))
-            patcher.copy_or_add_file("lap_music_fast.ast", "files/AudioRes/Stream/{}".format(fast_music))
-            if not patcher.src_file_exists("lap_music_normal.ast"):
-                patcher.copy_or_add_file("lap_music_fast.ast", "files/AudioRes/Stream/{}".format(normal_music))
-            if not patcher.src_file_exists("lap_music_fast.ast"):
-                patcher.copy_or_add_file("lap_music_normal.ast", "files/AudioRes/Stream/{}".format(fast_music))
+                track_mp_arc.write_arc_uncompressed(newarc_mp)
+                
+                patcher.change_file("files/Course/{}.arc".format(bigname), newarc)
+                patcher.change_file("files/Course/{}L.arc".format(bigname), newarc_mp)
+                 
+                print("replacing", "files/Course/{}.arc".format(bigname))
+                if bigname == "Luigi2":
+                    bigname = "Luigi"
+                if smallname == "luigi2":
+                    smallname = "luigi"
+                # Copy language images 
+                missing_languages = []
+                main_language = config["Config"]["main_language"]
+                
+                for srclanguage in LANGUAGES:
+                    dstlanguage = srclanguage
+                    if not patcher.src_file_exists("course_images/{}/".format(srclanguage)):
+                        #missing_languages.append(srclanguage)
+                        #continue
+                        srclanguage = main_language
+                    
+                    
+                    coursename_arc_path = "files/SceneData/{}/coursename.arc".format(dstlanguage)
+                    courseselect_arc_path = "files/SceneData/{}/courseselect.arc".format(dstlanguage)
+                    if not iso.file_exists(coursename_arc_path):
+                        continue 
+                    
+                    #print("Found language", language)
+                    
+                    
+                    coursename_arc = Archive.from_file(patcher.get_iso_file(coursename_arc_path))
+                    courseselect_arc = Archive.from_file(patcher.get_iso_file(courseselect_arc_path))
 
-        patch_baa(iso)
+                    patcher.copy_file("course_images/{}/track_big_logo.bti".format(srclanguage),
+                                    "files/CourseName/{}/{}_name.bti".format(dstlanguage, bigname))
+
+                    patcher.copy_file_into_arc("course_images/{}/track_small_logo.bti".format(srclanguage),
+                                coursename_arc, "coursename/timg/{}_names.bti".format(smallname))
+                    patcher.copy_file_into_arc("course_images/{}/track_name.bti".format(srclanguage),
+                                courseselect_arc, "courseselect/timg/{}".format(trackname))
+                    patcher.copy_file_into_arc("course_images/{}/track_image.bti".format(srclanguage),
+                                courseselect_arc, "courseselect/timg/{}".format(trackimage))
+
+
+                    newarc = BytesIO()
+                    coursename_arc.write_arc_uncompressed(newarc)
+                    newarc.seek(0)
+                    
+                    newarc_mp = BytesIO()
+                    courseselect_arc.write_arc_uncompressed(newarc_mp)
+                    newarc_mp.seek(0)
+                    patcher.change_file("files/SceneData/{}/coursename.arc".format(dstlanguage), newarc)
+                    patcher.change_file("files/SceneData/{}/courseselect.arc".format(dstlanguage), newarc_mp) 
+                
+                
+                # Copy over the normal and fast music
+                # Note: if the fast music is missing, the normal music is used as fast music 
+                # and vice versa. If both are missing, no copying is happening due to behaviour of
+                # copy_or_add_file function
+                patcher.copy_or_add_file("lap_music_normal.ast", "files/AudioRes/Stream/{}".format(normal_music))
+                patcher.copy_or_add_file("lap_music_fast.ast", "files/AudioRes/Stream/{}".format(fast_music))
+                if not patcher.src_file_exists("lap_music_normal.ast"):
+                    patcher.copy_or_add_file("lap_music_fast.ast", "files/AudioRes/Stream/{}".format(normal_music))
+                if not patcher.src_file_exists("lap_music_fast.ast"):
+                    patcher.copy_or_add_file("lap_music_normal.ast", "files/AudioRes/Stream/{}".format(fast_music))
+                
+        if at_least_1_track:
+            patch_baa(iso)
         print("loaded")
         print("writing iso")
         print("all changed files:", iso.changed_files.keys())
@@ -388,5 +450,6 @@ class Application(tk.Frame):
         
 if __name__ == "__main__":
     root = tk.Tk()
+    root.title("MKDD Track and Mod Patcher")
     app = Application(master=root)
     app.mainloop()

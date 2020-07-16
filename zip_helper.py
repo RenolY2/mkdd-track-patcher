@@ -1,4 +1,6 @@
 import zipfile
+import os 
+from pathlib import Path
 
 class ZipLikeFolder(object):
     def __init__(self, filepath):
@@ -6,11 +8,52 @@ class ZipLikeFolder(object):
     
     #def 
 
+def find_arc(path):
+    for i, part in enumerate(path.parts):
+        if part.find(".arc") != -1:
+            return i 
+    return -1 
+    
+
 class ZipToIsoPatcher(object):
     def __init__(self, zip, iso):
         self.zip = zip 
         self.iso = iso 
+    
+    def get_file_changes(self, startpath):
+        arcs = {}
+        files = []
         
+        for filepath in self.zip.namelist():
+            zippath = zipfile.Path(self.zip, filepath)
+            if zippath.is_dir():
+                continue 
+                
+            if filepath.startswith(startpath):
+                path = Path(filepath[len(startpath):])
+                if len(path.parts) == 0:
+                    continue 
+                
+                arc = find_arc(path)
+                
+                if arc != -1:
+                    if filepath.count(".arc") > 1:
+                        continue 
+                        
+                    if arc+1 < len(path.parts):
+                        arcpath = "/".join(path.parts[:arc+1])
+                        filepath =  "/".join(path.parts[arc+1:])
+                        
+                        if arcpath not in arcs:
+                            arcs[arcpath] = [filepath]
+                        else:
+                            arcs[arcpath].append(filepath)
+                else:
+                    files.append("/".join(path.parts))
+        
+        return arcs, files 
+                    
+    
     def src_file_exists(self, filepath):
         try:
             self.zip.getinfo(filepath)
@@ -21,7 +64,7 @@ class ZipToIsoPatcher(object):
     def copy_file(self, srcpath, destpath, missing_ok=True):
         try:
             file = self.zip.open(srcpath)
-        except FileNotFoundError:
+        except KeyError:
             if not missing_ok:
                 raise 
         else:
@@ -30,7 +73,7 @@ class ZipToIsoPatcher(object):
     def copy_or_add_file(self, srcpath, destpath, missing_ok=True):
         try:
             file = self.zip.open(srcpath)
-        except FileNotFoundError:
+        except KeyError:
             if not missing_ok:
                 raise 
         else:
@@ -39,7 +82,7 @@ class ZipToIsoPatcher(object):
     def copy_file_into_arc(self, srcpath, arc, destpath, missing_ok=True):
         try:
             src_file = self.zip.open(srcpath)
-        except FileNotFoundError:
+        except KeyError:
             if not missing_ok:
                 raise
         else:
