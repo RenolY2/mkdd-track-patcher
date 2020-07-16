@@ -76,7 +76,7 @@ arc_mapping = {
     "Bowser Castle": ["Koopa", "koopa"],
     "Rainbow Road": ["Rainbow", "rainbow"],
     "Dry Dry Desert": ["Desert", "desert"],
-    "Sherbet Island": ["Snow", "snow"]
+    "Sherbet Land": ["Snow", "snow"]
 }
 
 file_mapping = {
@@ -126,7 +126,7 @@ file_mapping = {
     #    "Donkey_name.bti", "donkey_names.bti", "coname_dk_mountain.bti", "coname_dk_mountain.bti"
     #],
     "DK Mountain": ["COURSE_MOUNTAIN_0.x.32.c4.ast", "FINALLAP_MOUNTAIN_0.x.32.c4.ast", 
-        "Donkey_name.bti", "donkey_names.bti", "coname_dk_mountain.bti", "coname_dk_mountain.bti"
+        "Donkey_name.bti", "donkey_names.bti", "coname_dk_mountain.bti", "cop_dk_mountain.bti"
     ],
     "Bowser Castle": ["COURSE_CASTLE_0.x.32.c4.ast", "FINALLAP_CASTLE_0.x.32.c4.ast",
         "Koopa_name.bti", "koopa_names.bti", "coname_bowser_castle.bti", "cop_bowser_castle.bti"
@@ -135,7 +135,7 @@ file_mapping = {
         "Rainbow_name.bti", "rainbow_names.bti", "coname_rainbow_road.bti", "cop_rainbow_road.bti"],
     "Dry Dry Desert": ["COURSE_DESERT_0.x.32.c4.ast", "FINALLAP_DESERT_0.x.32.c4.ast", 
         "Desert_name.bti", "desert_names.bti", "coname_kara_kara_desert.bti", "cop_kara_kara_desert.bti",],
-    "Sherbet Island": ["COURSE_SNOW_0.x.32.c4.ast", "FINALLAP_SNOW_0.x.32.c4.ast", 
+    "Sherbet Land": ["COURSE_SNOW_0.x.32.c4.ast", "FINALLAP_SNOW_0.x.32.c4.ast", 
         "Snow_name.bti", "snow_names.bti", "coname_sherbet_land.bti", "cop_sherbet_land.bti"]
 }
 
