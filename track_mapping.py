@@ -53,30 +53,38 @@ bsft = [
     "AudioRes/Stream/GOAL3F_0.x.32.c4.ast"
 ]
 
+battle_mapping = {
+    "Luigi's Mansion": ["Mini1", "battlemapsnap6.bti", "mozi_map6.bti"],
+    "Nintendo Gamecube": ["Mini2", "battlemapsnap3.bti", "mozi_map3.bti"],
+    "Block City": ["Mini3", "battlemapsnap2.bti", "mozi_map2.bti"],
+    "Tilt-a-Kart": ["Mini5", "battlemapsnap5.bti", "mozi_map5.bti"],
+    "Cookie Land": ["Mini7", "battlemapsnap1.bti", "mozi_map1.bti"],
+    "Pipe Plaza": ["Mini8", "battlemapsnap4.bti", "mozi_map4.bti"]
+}
+
 arc_mapping = {
     "Baby Park": ["BabyLuigi", "babyluigi"],
     "Peach Beach": ["Peach", "peach"],
     "Daisy Cruiser": ["Daisy", "daisy"],
-    "Daisy Cruiser (Own Music)": ["Daisy", "daisy"],
-    "Luigi Circuit 50cc": ["Luigi", "luigi"],
     "Luigi Circuit": ["Luigi2", "luigi2"],
     "Mario Circuit": ["Mario", "mario"],
-    "Mario Circuit (Own Music)": ["Mario", "mario"],
     "Yoshi Circuit": ["Yoshi", "yoshi"],
-    "Yoshi Circuit (Own Music)": ["Yoshi", "yoshi"],
     "Mushroom Bridge": ["Nokonoko", "nokonoko"],
     "Mushroom City": ["Patapata", "patapata"],
-    "Mushroom City (Own Music)": ["Patapata", "patapata"],
     "Waluigi Stadium": ["Waluigi", "waluigi"],
     "Wario Colosseum": ["Wario", "wario"],
-    "Wario Colosseum (Own Music)": ["Wario", "wario"],
     "Dino Jungle": ["Diddy", "diddy"],
     "DK Mountain": ["Donkey", "donkey"],
-    "DK Mountain (Own Music)": ["Donkey", "donkey"],
     "Bowser Castle": ["Koopa", "koopa"],
     "Rainbow Road": ["Rainbow", "rainbow"],
     "Dry Dry Desert": ["Desert", "desert"],
-    "Sherbet Land": ["Snow", "snow"]
+    "Sherbet Land": ["Snow", "snow"],
+    "Luigi's Mansion": ["Mini1", "mini1"],
+    "Nintendo Gamecube": ["Mini2", "mini2"],
+    "Block City": ["Mini3", "mini3"],
+    "Tilt-a-Kart": ["Mini5", "mini5"],
+    "Cookie Land": ["Mini7", "mini7"],
+    "Pipe Plaza": ["Mini8", "mini8"]
 }
 
 file_mapping = {

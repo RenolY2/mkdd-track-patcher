@@ -7,7 +7,7 @@ from tkinter import filedialog
 from tkinter import messagebox
 
 from gcm import GCM
-from track_mapping import arc_mapping, file_mapping, bsft
+from track_mapping import arc_mapping, file_mapping, bsft, battle_mapping
 from dolreader import *
 from rarc import Archive, write_pad32, write_uint32
 from readbsft import BSFT
@@ -356,8 +356,11 @@ class Application(tk.Frame):
                 patcher.change_file("sys/main.dol", dol._rawdata)
                 
                 bigname, smallname = arc_mapping[replace]
-                _, _, bigbanner, smallbanner, trackname, trackimage = file_mapping[replace]
-                normal_music, fast_music = file_mapping[replace_music][0:2]
+                if replace in file_mapping:
+                    _, _, bigbanner, smallbanner, trackname, trackimage = file_mapping[replace]
+                else:
+                    _, trackimage, trackname = battle_mapping[replace] 
+                
                 # Copy staff ghost 
                 patcher.copy_file("staffghost.ght", "files/StaffGhosts/{}.ght".format(bigname))
                 
@@ -419,44 +422,61 @@ class Application(tk.Frame):
                     coursename_arc_path = "files/SceneData/{}/coursename.arc".format(dstlanguage)
                     courseselect_arc_path = "files/SceneData/{}/courseselect.arc".format(dstlanguage)
                     lanplay_arc_path = "files/SceneData/{}/LANPlay.arc".format(dstlanguage)
+                    mapselect_arc_path = "files/SceneData/{}/mapselect.arc".format(dstlanguage)
                     
                     if not iso.file_exists(coursename_arc_path):
                         continue 
                     
                     #print("Found language", language)
-                    
-                    
-                    coursename_arc = Archive.from_file(patcher.get_iso_file(coursename_arc_path))
-                    courseselect_arc = Archive.from_file(patcher.get_iso_file(courseselect_arc_path))
-                    lanplay_arc = Archive.from_file(patcher.get_iso_file(lanplay_arc_path))
-                    
                     patcher.copy_file("course_images/{}/track_big_logo.bti".format(srclanguage),
-                                    "files/CourseName/{}/{}_name.bti".format(dstlanguage, bigname))
-
-                    patcher.copy_file_into_arc("course_images/{}/track_small_logo.bti".format(srclanguage),
-                                coursename_arc, "coursename/timg/{}_names.bti".format(smallname))
-                    patcher.copy_file_into_arc("course_images/{}/track_name.bti".format(srclanguage),
-                                courseselect_arc, "courseselect/timg/{}".format(trackname))
-                    patcher.copy_file_into_arc("course_images/{}/track_image.bti".format(srclanguage),
-                                courseselect_arc, "courseselect/timg/{}".format(trackimage))
+                                        "files/CourseName/{}/{}_name.bti".format(dstlanguage, bigname))
+                                        
+                    if replace not in battle_mapping:
+                        coursename_arc = Archive.from_file(patcher.get_iso_file(coursename_arc_path))
+                        courseselect_arc = Archive.from_file(patcher.get_iso_file(courseselect_arc_path))
+                        
+                        patcher.copy_file_into_arc("course_images/{}/track_small_logo.bti".format(srclanguage),
+                                    coursename_arc, "coursename/timg/{}_names.bti".format(smallname))
+                        patcher.copy_file_into_arc("course_images/{}/track_name.bti".format(srclanguage),
+                                    courseselect_arc, "courseselect/timg/{}".format(trackname))
+                        patcher.copy_file_into_arc("course_images/{}/track_image.bti".format(srclanguage),
+                                    courseselect_arc, "courseselect/timg/{}".format(trackimage))
+                                    
+                        newarc = BytesIO()
+                        coursename_arc.write_arc_uncompressed(newarc)
+                        newarc.seek(0)
+                        
+                        newarc_mp = BytesIO()
+                        courseselect_arc.write_arc_uncompressed(newarc_mp)
+                        newarc_mp.seek(0)
                     
+                        patcher.change_file(coursename_arc_path, newarc)
+                        patcher.change_file(courseselect_arc_path, newarc_mp)
+                        
+                    else:
+                        mapselect_arc = Archive.from_file(patcher.get_iso_file(mapselect_arc_path))
+                        
+                        patcher.copy_file_into_arc("course_images/{}/track_name.bti".format(srclanguage),
+                                    mapselect_arc, "mapselect/timg/{}".format(trackname))
+                        patcher.copy_file_into_arc("course_images/{}/track_image.bti".format(srclanguage),
+                                    mapselect_arc, "mapselect/timg/{}".format(trackimage))
+                        
+                        newarc_mapselect = BytesIO()
+                        mapselect_arc.write_arc_uncompressed(newarc_mapselect)
+                        newarc_mapselect.seek(0)
+                    
+                        patcher.change_file(mapselect_arc_path, newarc_mapselect)
+                        
+                        
+                    lanplay_arc = Archive.from_file(patcher.get_iso_file(lanplay_arc_path))
                     patcher.copy_file_into_arc("course_images/{}/track_name.bti".format(srclanguage),
                                 lanplay_arc, "lanplay/timg/{}".format(trackname))
 
-                    newarc = BytesIO()
-                    coursename_arc.write_arc_uncompressed(newarc)
-                    newarc.seek(0)
-                    
-                    newarc_mp = BytesIO()
-                    courseselect_arc.write_arc_uncompressed(newarc_mp)
-                    newarc_mp.seek(0)
-                    
+
                     newarc_lan = BytesIO()
                     lanplay_arc.write_arc_uncompressed(newarc_lan)
                     newarc_lan.seek(0)
                     
-                    patcher.change_file(coursename_arc_path, newarc)
-                    patcher.change_file(courseselect_arc_path, newarc_mp)
                     patcher.change_file(lanplay_arc_path, newarc_lan)                    
                 
                 
@@ -464,12 +484,15 @@ class Application(tk.Frame):
                 # Note: if the fast music is missing, the normal music is used as fast music 
                 # and vice versa. If both are missing, no copying is happening due to behaviour of
                 # copy_or_add_file function
-                patcher.copy_or_add_file("lap_music_normal.ast", "files/AudioRes/Stream/{}".format(normal_music))
-                patcher.copy_or_add_file("lap_music_fast.ast", "files/AudioRes/Stream/{}".format(fast_music))
-                if not patcher.src_file_exists("lap_music_normal.ast"):
-                    patcher.copy_or_add_file("lap_music_fast.ast", "files/AudioRes/Stream/{}".format(normal_music))
-                if not patcher.src_file_exists("lap_music_fast.ast"):
-                    patcher.copy_or_add_file("lap_music_normal.ast", "files/AudioRes/Stream/{}".format(fast_music))
+                if replace in file_mapping:
+                    normal_music, fast_music = file_mapping[replace_music][0:2]
+                    
+                    patcher.copy_or_add_file("lap_music_normal.ast", "files/AudioRes/Stream/{}".format(normal_music))
+                    patcher.copy_or_add_file("lap_music_fast.ast", "files/AudioRes/Stream/{}".format(fast_music))
+                    if not patcher.src_file_exists("lap_music_normal.ast"):
+                        patcher.copy_or_add_file("lap_music_fast.ast", "files/AudioRes/Stream/{}".format(normal_music))
+                    if not patcher.src_file_exists("lap_music_fast.ast"):
+                        patcher.copy_or_add_file("lap_music_normal.ast", "files/AudioRes/Stream/{}".format(fast_music))
                 
         if at_least_1_track:
             patch_baa(iso)
