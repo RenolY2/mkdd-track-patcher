@@ -375,8 +375,31 @@ class Application(tk.Frame):
                 
                 patcher.change_file("files/Course/{}.arc".format(bigname), newarc)
                 patcher.change_file("files/Course/{}L.arc".format(bigname), newarc_mp)
-                 
+             
                 print("replacing", "files/Course/{}.arc".format(bigname))
+                
+                
+                if replace == "Luigi Circuit":
+                    if patcher.src_file_exists("track_50cc.arc"):
+                        patcher.copy_file("track_50cc.arc", "files/Course/Luigi.arc")
+                    else:
+                        rename_archive(track_arc, "luigi", False)
+                        newarc = BytesIO()
+                        track_arc.write_arc_uncompressed(newarc)
+                        
+                        patcher.change_file("files/Course/Luigi.arc", newarc)
+                        
+                    if patcher.src_file_exists("track_mp_50cc.arc"):
+                        patcher.copy_file("track_50cc.arc", "files/Course/LuigiL.arc")
+                    else:
+                        rename_archive(track_mp_arc, "luigi", True)
+                        
+                        newarc = BytesIO()
+                        track_mp_arc.write_arc_uncompressed(newarc)
+                        
+                        patcher.change_file("files/Course/LuigiL.arc", newarc)
+                        
+                        
                 if bigname == "Luigi2":
                     bigname = "Luigi"
                 if smallname == "luigi2":
@@ -395,6 +418,8 @@ class Application(tk.Frame):
                     
                     coursename_arc_path = "files/SceneData/{}/coursename.arc".format(dstlanguage)
                     courseselect_arc_path = "files/SceneData/{}/courseselect.arc".format(dstlanguage)
+                    lanplay_arc_path = "files/SceneData/{}/LANPlay.arc".format(dstlanguage)
+                    
                     if not iso.file_exists(coursename_arc_path):
                         continue 
                     
@@ -403,7 +428,8 @@ class Application(tk.Frame):
                     
                     coursename_arc = Archive.from_file(patcher.get_iso_file(coursename_arc_path))
                     courseselect_arc = Archive.from_file(patcher.get_iso_file(courseselect_arc_path))
-
+                    lanplay_arc = Archive.from_file(patcher.get_iso_file(lanplay_arc_path))
+                    
                     patcher.copy_file("course_images/{}/track_big_logo.bti".format(srclanguage),
                                     "files/CourseName/{}/{}_name.bti".format(dstlanguage, bigname))
 
@@ -413,7 +439,9 @@ class Application(tk.Frame):
                                 courseselect_arc, "courseselect/timg/{}".format(trackname))
                     patcher.copy_file_into_arc("course_images/{}/track_image.bti".format(srclanguage),
                                 courseselect_arc, "courseselect/timg/{}".format(trackimage))
-
+                    
+                    patcher.copy_file_into_arc("course_images/{}/track_name.bti".format(srclanguage),
+                                lanplay_arc, "lanplay/timg/{}".format(trackname))
 
                     newarc = BytesIO()
                     coursename_arc.write_arc_uncompressed(newarc)
@@ -422,8 +450,14 @@ class Application(tk.Frame):
                     newarc_mp = BytesIO()
                     courseselect_arc.write_arc_uncompressed(newarc_mp)
                     newarc_mp.seek(0)
-                    patcher.change_file("files/SceneData/{}/coursename.arc".format(dstlanguage), newarc)
-                    patcher.change_file("files/SceneData/{}/courseselect.arc".format(dstlanguage), newarc_mp) 
+                    
+                    newarc_lan = BytesIO()
+                    lanplay_arc.write_arc_uncompressed(newarc_lan)
+                    newarc_lan.seek(0)
+                    
+                    patcher.change_file(coursename_arc_path, newarc)
+                    patcher.change_file(courseselect_arc_path, newarc_mp)
+                    patcher.change_file(lanplay_arc_path, newarc_lan)                    
                 
                 
                 # Copy over the normal and fast music
