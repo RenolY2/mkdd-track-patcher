@@ -2,9 +2,11 @@ import tkinter as tk
 import zipfile
 import json 
 import configparser
+import os 
 from io import BytesIO
 from tkinter import filedialog
 from tkinter import messagebox
+
 
 from gcm import GCM
 from track_mapping import arc_mapping, file_mapping, bsft, battle_mapping
@@ -12,6 +14,7 @@ from dolreader import *
 from rarc import Archive, write_pad32, write_uint32
 from readbsft import BSFT
 from zip_helper import ZipToIsoPatcher
+from configuration import read_config, make_default_config, save_cfg
 
 GAMEID_TO_REGION = {
     b"GM4E": "US",
@@ -155,7 +158,7 @@ def rename_archive(arc, newname, mp):
         
 
 class ChooseFilePath(tk.Frame):
-    def __init__(self, master=None, description=None, file_chosen_callback=None, save=False):
+    def __init__(self, master=None, description=None, file_chosen_callback=None, save=False, config=None):
         super().__init__(master)
         self.master = master
         self.pack(anchor="w") 
@@ -172,22 +175,39 @@ class ChooseFilePath(tk.Frame):
         self.button.pack(side="left")
         self.save = save 
         self.callback = file_chosen_callback
+        self.config = config 
         
     def open_file(self):
-        if self.save:
-            path = filedialog.asksaveasfilename()
+        if self.config is not None:
+            initialdir = self.config["default paths"]["iso"]
         else:
-            path = filedialog.askopenfilename()
+            initialdir = None 
+            
+        if self.save:
+            path = filedialog.asksaveasfilename(initialdir=initialdir,
+                title="Choose location of new MKDD GCM/ISO",
+                filetypes=(("GameCube Disc Image", "*.iso *.gcm"), ))
+        else:
+            path = filedialog.askopenfilename(initialdir=initialdir,
+                title="Choose a MKDD GCM/ISO",
+                filetypes=(("GameCube Disc Image", "*.iso *.gcm"), ))
         
         #print("path:" ,path)
-        self.path.delete(0, tk.END)
-        self.path.insert(0, path)
+        if path:
+            self.path.delete(0, tk.END)
+            self.path.insert(0, path)
         
-        if self.callback != None:
-            self.callback(self)
+            if self.callback != None:
+                self.callback(self)
+        
+
+            folder = os.path.dirname(path)
+            if self.config is not None:
+                self.config["default paths"]["iso"] = folder 
+                save_cfg(self.config)
 
 class ChooseFilePathMultiple(tk.Frame):
-    def __init__(self, master=None, description=None, save=False):
+    def __init__(self, master=None, description=None, save=False, config=None):
         super().__init__(master)
         self.master = master
         self.pack(anchor="w") 
@@ -205,17 +225,30 @@ class ChooseFilePathMultiple(tk.Frame):
         self.save = save 
         
         self.paths = []
+        self.config = config 
         
         
     def open_file(self):
-        paths = filedialog.askopenfilenames(title="Choose Race Track zip file(s)", 
+        if self.config is not None:
+            initialdir = self.config["default paths"]["mods"]
+        else:
+            initialdir = None 
+            
+        paths = filedialog.askopenfilenames(initialdir=initialdir, 
+        title="Choose Race Track zip file(s)", 
         filetypes=(("MKDD Track Zip", "*.zip"), ))
         
         #print("path:" ,path)
-        self.path.delete(0, tk.END)
-        self.path.insert(0, paths[0])
-        self.paths = paths 
+        if len(paths) > 0:
+            self.path.delete(0, tk.END)
+            self.path.insert(0, paths[0])
+            self.paths = paths 
         
+        if len(paths) > 0:
+            folder = os.path.dirname(paths[0])
+            if self.config is not None:
+                self.config["default paths"]["mods"] = folder 
+                save_cfg(self.config)
         
     def get_paths(self):
         if not self.path.get():
@@ -232,7 +265,17 @@ class Application(tk.Frame):
         self.master = master
         
         self.pack()
+        
+        try:
+            self.configuration = read_config()
+            print("Config file loaded")
+        except FileNotFoundError as e:
+            print("No config file found, creating default config...")
+            self.configuration = make_default_config()
+        
         self.create_widgets()
+        
+        
     
     def make_open_button(self, master):
         button = tk.Button(master)
@@ -245,11 +288,14 @@ class Application(tk.Frame):
             self.output_iso_path.path.insert(0, widget.path.get())
     
     def create_widgets(self):
-        self.input_iso_path = ChooseFilePath(self, description="MKDD ISO", file_chosen_callback=self.update_path)
+        self.input_iso_path = ChooseFilePath(self, description="MKDD ISO", file_chosen_callback=self.update_path,
+            config=self.configuration)
         
-        self.input_mod_path = ChooseFilePathMultiple(self, description="Race track/Mod zip")
+        self.input_mod_path = ChooseFilePathMultiple(self, description="Race track/Mod zip",
+            config=self.configuration)
         
-        self.output_iso_path = ChooseFilePath(self, description="New ISO", save=True)
+        self.output_iso_path = ChooseFilePath(self, description="New ISO", save=True,
+            config=self.configuration)
         
         self.frame = tk.Frame(self)
         self.frame.pack()
@@ -300,12 +346,15 @@ class Application(tk.Frame):
             
             
             config = configparser.ConfigParser()
-            print(trackzip.namelist())
+            #print(trackzip.namelist())
             if patcher.src_file_exists("modinfo.ini"):
+                
                 modinfo = trackzip.open("modinfo.ini")
                 config.read_string(str(modinfo.read(), encoding="utf-8"))
+                print("Mod", config["Config"]["modname"], "by", config["Config"]["author"])
+                print("Description:", config["Config"]["description"])
                 # patch files 
-                print(trackzip.namelist())
+                #print(trackzip.namelist())
                 
                 
                 arcs, files = patcher.get_file_changes("files/")
@@ -321,11 +370,11 @@ class Application(tk.Frame):
                     if not iso.file_exists(srcarcpath):
                         continue 
                         
-                    print("Loaded arc:", arc)
+                    #print("Loaded arc:", arc)
                     destination_arc = Archive.from_file(patcher.get_iso_file(srcarcpath))
 
                     for file in arcfiles:
-                        print("files/"+file)
+                        #print("files/"+file)
                         patcher.copy_file_into_arc("files/"+arc+"/"+file,
                                     destination_arc, file, missing_ok=False)
 
@@ -338,7 +387,7 @@ class Application(tk.Frame):
                 
                 if "race2d.arc" in arcs:
                     arcfiles = arcs["race2d.arc"]
-                    print("Loaded race2d arc")
+                    #print("Loaded race2d arc")
                     mram_arc = Archive.from_file(patcher.get_iso_file("files/MRAM.arc"))
                     
                     race2d_arc = Archive.from_file(mram_arc["mram/race2d.arc"])
@@ -359,6 +408,7 @@ class Application(tk.Frame):
                     patcher.change_file("files/MRAM.arc", newarc)
                 
             else:
+                at_least_1_track = True 
                 trackinfo = trackzip.open("trackinfo.ini")
                 config.read_string(str(trackinfo.read(), encoding="utf-8"))
                 
@@ -528,12 +578,13 @@ class Application(tk.Frame):
                         patcher.copy_or_add_file("lap_music_normal.ast", "files/AudioRes/Stream/{}".format(fast_music))
                 
         if at_least_1_track:
+            print("patched .baa file")
             patch_baa(iso)
         print("loaded")
         print("writing iso")
-        print("all changed files:", iso.changed_files.keys())
+        #print("all changed files:", iso.changed_files.keys())
         iso.export_disc_to_iso_with_changed_files(self.input_iso_path.path.get()+"new.iso")
-        print("written") 
+        print("finished writing iso, you are good to go!") 
         
     def say_hi(self):
         print("hi there, everyone!")
