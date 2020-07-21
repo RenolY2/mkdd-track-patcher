@@ -37,7 +37,7 @@ class CompressionSetting(object):
         os.close(handle)
         filedata = file.getvalue()
         with open(abspath, "wb") as f:
-            print("writing to", abspath)
+            #print("writing to", abspath)
             f.write(filedata)
             f.close()
         
@@ -466,7 +466,6 @@ class Archive(object):
     @classmethod
     def from_file(cls, f):
         newarc = cls()
-        print("ok")
         header = f.read(4)
 
         if header == b"Yaz0":
@@ -503,7 +502,7 @@ class Archive(object):
         f.read(8) # Unknown
         nodes = []
 
-        print("Archive has", node_count, " total directories")
+        #print("Archive has", node_count, " total directories")
 
                 
         
@@ -672,7 +671,7 @@ class Archive(object):
             return maxindex + 1
         
         for dir in dirlist:
-            print("Hello", dir.absolute_path())
+            #print("Hello", dir.absolute_path())
             abspath = dir.absolute_path()   
             files = []
             
@@ -688,7 +687,7 @@ class Archive(object):
                     if filepath in filelisting:
                         fileid, filemeta = filelisting[filepath]
                         write_uint16(f, fileid)
-                        print("found filemeta")
+                        #print("found filemeta")
                     else:
                         write_uint16(f, fileid)
                 else:
@@ -707,7 +706,7 @@ class Archive(object):
                 if filemeta.is_yaz0 and filemeta.is_compressed:
                     #print("so far so gud")
                     if compression_settings.wszst:
-                        print("doing wszst thing")
+                        #print("doing wszst thing")
                         compressed_data = compression_setting.run_wszst(file)
                         data.write(compressed_data)
                     else:
@@ -810,7 +809,7 @@ if __name__ == "__main__":
         dir2arc = False
 
     compression_setting = CompressionSetting(args.yaz0fast, args.wszst, args.wszst_comprlevel)
-    print("Use wszst?", args.wszst)
+    #print("Use wszst?", args.wszst)
     
     if args.output is None:
         path, name = os.path.split(inputpath)
@@ -844,7 +843,7 @@ if __name__ == "__main__":
         if inputdir is None:
             raise RuntimeError("Directory {0} contains no folders! Exactly one folder should exist.".format(inputpath))
         
-        print("Packing directory to archive")
+        #print("Packing directory to archive")
         archive = Archive.from_dir(os.path.join(inputpath, inputdir))
         filelisting = {}
         maxindex = 0
@@ -860,16 +859,16 @@ if __name__ == "__main__":
                     else:
                         path, fileid, metadata = result 
                         filelisting_meta = FileListing.from_string(metadata)
-                        print(metadata, filelisting_meta)
+                        #print(metadata, filelisting_meta)
                     
                     filelisting[path] = (int(fileid), filelisting_meta)
                     if int(fileid) > maxindex:
                         maxindex = int(fileid)
         except:
-            print("no filelisting")
+            #print("no filelisting")
             pass
         
-        print("Directory loaded into memory, writing archive now")
+        #print("Directory loaded into memory, writing archive now")
         
         
         
@@ -878,9 +877,9 @@ if __name__ == "__main__":
                 archive.write_arc_compressed(f, compression_setting, filelisting, maxindex)
             else:
                 archive.write_arc(f, compression_setting, filelisting, maxindex)
-        print("Done")
+        #print("Done")
     else:
-        print("Extracting archive to directory")
+        #print("Extracting archive to directory")
         with open(inputpath, "rb") as f:
             archive = Archive.from_file(f)
         archive.extract_to(outputpath)
@@ -901,7 +900,7 @@ if __name__ == "__main__":
                     f.write(" ")
                     f.write(str(file._fileid))
                     meta = file.filetype.to_string()
-                    print(hex(file._flags), file.filetype.to_string())
+                    #print(hex(file._flags), file.filetype.to_string())
                     if meta:
                         f.write(" ")
                         f.write(meta)
