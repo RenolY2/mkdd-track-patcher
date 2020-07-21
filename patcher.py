@@ -70,7 +70,7 @@ def patch_baa(iso):
     
     print("Copied ast files")
     
-def patch_minimap_dol(dol, track, region, minimap_setting):
+def patch_minimap_dol(dol, track, region, minimap_setting, intended_track=True):
     with open("minimap_locations.json", "r") as f:
         addresses_json = json.load(f)
         addresses = addresses_json[region]
@@ -98,7 +98,35 @@ def patch_minimap_dol(dol, track, region, minimap_setting):
     write_float(dol, minimap_setting["Bottom Right Corner X"])
     dol.seek(int(corner2z, 16))
     write_float(dol, minimap_setting["Bottom Right Corner Z"])
-
+    
+    if not intended_track:
+        minimap_transforms = addresses_json[region+"_MinimapLocation"]
+        if track in minimap_transforms:
+            if len(minimap_transforms[track]) == 9:
+                p1_offx, p1_offy, p1_scale = minimap_transforms[track][0:3]
+                p2_offx, p2_offy, p2_scale = minimap_transforms[track][3:6]
+                p3_offx, p3_offy, p3_scale = minimap_transforms[track][6:9]
+            else:
+                p1_offx, p1_offx2, p1_offy, p1_scale = minimap_transforms[track][0:4]
+                p2_offx, p2_offx2, p2_offy, p2_scale = minimap_transforms[track][4:8]
+                p3_offx, p3_offx2, p3_offy, p3_scale = minimap_transforms[track][8:12]
+                
+                write_uint32_offset(dol, 0xC02298E4, int(p1_offx2, 16))
+                write_uint32_offset(dol, 0xC02298EC, int(p2_offx2, 16))
+                write_uint32_offset(dol, 0xC0229838, int(p3_offx2, 16))
+            
+            write_uint32_offset(dol, 0xC02298E4, int(p1_offx, 16))
+            write_uint32_offset(dol, 0xC02298EC, int(p2_offx, 16))
+            write_uint32_offset(dol, 0xC0229838, int(p3_offx, 16))
+            
+            write_uint32_offset(dol, 0xC02298E8, int(p1_offy, 16))
+            write_uint32_offset(dol, 0xC0229838, int(p2_offy, 16))
+            write_uint32_offset(dol, 0xC0229838, int(p3_offy, 16))
+            
+            write_uint32_offset(dol, 0xC02298A8, int(p1_scale, 16))
+            write_uint32_offset(dol, 0xC02298B4, int(p2_scale, 16))
+            write_uint32_offset(dol, 0xC022983C, int(p3_scale, 16))
+            
 
 def rename_archive(arc, newname, mp):
     if mp:
@@ -349,11 +377,6 @@ class Application(tk.Frame):
                 
                 
                 
-                # Patch minimap settings in dol 
-                dol = DolFile(patcher.get_iso_file("sys/main.dol"))
-                patch_minimap_dol(dol, replace, region, minimap_settings)
-                dol._rawdata.seek(0)
-                patcher.change_file("sys/main.dol", dol._rawdata)
                 
                 bigname, smallname = arc_mapping[replace]
                 if replace in file_mapping:
@@ -367,6 +390,16 @@ class Application(tk.Frame):
                 # Copy track arc 
                 track_arc = Archive.from_file(trackzip.open("track.arc"))
                 track_mp_arc = Archive.from_file(trackzip.open("track_mp.arc"))
+                
+                
+                # Patch minimap settings in dol 
+                dol = DolFile(patcher.get_iso_file("sys/main.dol"))
+                patch_minimap_dol(dol, replace, region, minimap_settings,  
+                intended_track=(track_arc.root.name==smallname))
+                dol._rawdata.seek(0)
+                patcher.change_file("sys/main.dol", dol._rawdata)
+                
+                
                 rename_archive(track_arc, smallname, False)
                 rename_archive(track_mp_arc, smallname, True)
                 

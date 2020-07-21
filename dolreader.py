@@ -31,6 +31,11 @@ def read_uint32(f):
 def write_uint32(f, val):
     f.write(struct.pack(">I", val))
 
+def write_uint32_offset(f, val, offset):
+    f.seek(offset)
+    f.write(struct.pack(">I", val))
+
+
 class UnmappedAddress(Exception):
     pass
     
