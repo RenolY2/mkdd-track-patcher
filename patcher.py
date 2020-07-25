@@ -341,15 +341,14 @@ class Application(tk.Frame):
         
         for track in self.input_mod_path.get_paths():
             print(track)
-            trackzip = zipfile.ZipFile(track)
-            patcher.zip = trackzip 
+            patcher.set_zip(track)
             
             
             config = configparser.ConfigParser()
             #print(trackzip.namelist())
             if patcher.src_file_exists("modinfo.ini"):
                 
-                modinfo = trackzip.open("modinfo.ini")
+                modinfo = patcher.zip_open("modinfo.ini")
                 config.read_string(str(modinfo.read(), encoding="utf-8"))
                 print("Mod", config["Config"]["modname"], "by", config["Config"]["author"])
                 print("Description:", config["Config"]["description"])
@@ -409,7 +408,7 @@ class Application(tk.Frame):
                 
             else:
                 at_least_1_track = True 
-                trackinfo = trackzip.open("trackinfo.ini")
+                trackinfo = patcher.zip_open("trackinfo.ini")
                 config.read_string(str(trackinfo.read(), encoding="utf-8"))
                 
                 #use_extended_music = config.getboolean("Config", "extended_music_slots")
@@ -421,7 +420,7 @@ class Application(tk.Frame):
                     config["Config"]["trackname"], config["Config"]["author"], config["Config"]["replaces"])
                     )
                 
-                minimap_settings = json.load(trackzip.open("minimap.json"))
+                minimap_settings = json.load(patcher.zip_open("minimap.json"))
                 
                 
                 
@@ -438,8 +437,8 @@ class Application(tk.Frame):
                 patcher.copy_file("staffghost.ght", "files/StaffGhosts/{}.ght".format(bigname))
                 
                 # Copy track arc 
-                track_arc = Archive.from_file(trackzip.open("track.arc"))
-                track_mp_arc = Archive.from_file(trackzip.open("track_mp.arc"))
+                track_arc = Archive.from_file(patcher.zip_open("track.arc"))
+                track_mp_arc = Archive.from_file(patcher.zip_open("track_mp.arc"))
                 
                 
                 # Patch minimap settings in dol 

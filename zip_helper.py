@@ -20,7 +20,41 @@ class ZipToIsoPatcher(object):
         self.zip = zip 
         self.iso = iso 
     
+    def set_zip(self, path):
+        self.zip = zipfile.ZipFile(path)
+        # Find the root folder:
+        spath = zipfile.Path(self.zip, "/")
+        
+        root = None 
+        for entry in spath.iterdir():
+            if root is None:
+                if entry.is_dir():
+                    root = entry.name
+                else:
+                    # the first entry we found is not a dir 
+                    root = None 
+                    break 
+            else:
+                # We found more than one entry in the root dir 
+                root = None 
+                break 
+                
+        if root is None:
+            self.root = ""
+        else:
+            self.root = root+"/"
+            
+        # Workaround for a weird bug where zipfile object considers itself closed
+        # after the above zipfile.Path call
+        self.zip = zipfile.ZipFile(path)
+    
+    def zip_open(self, filepath):
+        #print("open:", filepath)
+        fp = self.zip.open(self.root+filepath)
+        return fp
+    
     def get_file_changes(self, startpath):
+        startpath = self.root+startpath
         arcs = {}
         files = []
         
@@ -56,14 +90,14 @@ class ZipToIsoPatcher(object):
     
     def src_file_exists(self, filepath):
         try:
-            self.zip.getinfo(filepath)
+            self.zip.getinfo(self.root+filepath)
         except KeyError:
             return False 
         return True 
 
     def copy_file(self, srcpath, destpath, missing_ok=True):
         try:
-            file = self.zip.open(srcpath)
+            file = self.zip.open(self.root+srcpath)
         except KeyError:
             if not missing_ok:
                 raise 
@@ -72,7 +106,7 @@ class ZipToIsoPatcher(object):
     
     def copy_or_add_file(self, srcpath, destpath, missing_ok=True):
         try:
-            file = self.zip.open(srcpath)
+            file = self.zip.open(self.root+srcpath)
         except KeyError:
             if not missing_ok:
                 raise 
@@ -81,7 +115,7 @@ class ZipToIsoPatcher(object):
     
     def copy_file_into_arc(self, srcpath, arc, destpath, missing_ok=True):
         try:
-            src_file = self.zip.open(srcpath)
+            src_file = self.zip.open(self.root+srcpath)
         except KeyError:
             if not missing_ok:
                 raise
