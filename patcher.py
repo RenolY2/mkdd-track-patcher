@@ -285,7 +285,7 @@ class Application(tk.Frame):
     def update_path(self, widget):
         if widget.path.get() and not self.output_iso_path.path.get():
             self.output_iso_path.path.delete(0, tk.END)
-            self.output_iso_path.path.insert(0, widget.path.get())
+            self.output_iso_path.path.insert(0, widget.path.get()+"_new.iso")
     
     def create_widgets(self):
         self.input_iso_path = ChooseFilePath(self, description="MKDD ISO", file_chosen_callback=self.update_path,
@@ -568,21 +568,25 @@ class Application(tk.Frame):
                 # copy_or_add_file function
                 if replace in file_mapping:
                     normal_music, fast_music = file_mapping[replace_music][0:2]
-                    
-                    patcher.copy_or_add_file("lap_music_normal.ast", "files/AudioRes/Stream/{}".format(normal_music))
-                    patcher.copy_or_add_file("lap_music_fast.ast", "files/AudioRes/Stream/{}".format(fast_music))
+                    patcher.copy_or_add_file("lap_music_normal.ast", "files/AudioRes/Stream/{}".format(normal_music),
+                        missing_ok=True)
+                    patcher.copy_or_add_file("lap_music_fast.ast", "files/AudioRes/Stream/{}".format(fast_music),
+                        missing_ok=True)
                     if not patcher.src_file_exists("lap_music_normal.ast"):
-                        patcher.copy_or_add_file("lap_music_fast.ast", "files/AudioRes/Stream/{}".format(normal_music))
+                        patcher.copy_or_add_file("lap_music_fast.ast", "files/AudioRes/Stream/{}".format(normal_music),
+                            missing_ok=True)
                     if not patcher.src_file_exists("lap_music_fast.ast"):
-                        patcher.copy_or_add_file("lap_music_normal.ast", "files/AudioRes/Stream/{}".format(fast_music))
+                        patcher.copy_or_add_file("lap_music_normal.ast", "files/AudioRes/Stream/{}".format(fast_music),
+                            missing_ok=True)
+
                 
         if at_least_1_track:
             print("patched .baa file")
             patch_baa(iso)
         print("loaded")
-        print("writing iso")
+        print("writing iso to", self.output_iso_path.path.get())
         #print("all changed files:", iso.changed_files.keys())
-        iso.export_disc_to_iso_with_changed_files(self.input_iso_path.path.get()+"new.iso")
+        iso.export_disc_to_iso_with_changed_files(self.output_iso_path.path.get())
         print("finished writing iso, you are good to go!") 
         
     def say_hi(self):
