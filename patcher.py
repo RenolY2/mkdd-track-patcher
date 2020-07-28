@@ -74,7 +74,7 @@ def patch_baa(iso):
     print("Copied ast files")
     
 def patch_minimap_dol(dol, track, region, minimap_setting, intended_track=True):
-    with open("minimap_locations.json", "r") as f:
+    with open("resources/minimap_locations.json", "r") as f:
         addresses_json = json.load(f)
         addresses = addresses_json[region]
         corner1x, corner1z, corner2x, corner2z, orientation = addresses[track]
@@ -590,6 +590,7 @@ class Application(tk.Frame):
         
 if __name__ == "__main__":
     root = tk.Tk()
-    root.title("MKDD Track and Mod Patcher")
+    root.title("MKDD Patcher")
+    root.iconbitmap('resources/icon.ico')
     app = Application(master=root)
     app.mainloop()
