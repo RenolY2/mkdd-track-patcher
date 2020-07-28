@@ -185,8 +185,8 @@ class GCM:
     return file_path in self.files_by_path_lowercase
   
   def change_or_add_file(self, file_path, data):
-    file_path = file_path.lower()
-    if file_path in self.files_by_path_lowercase:
+    file_path_low = file_path.lower()
+    if file_path_low in self.files_by_path_lowercase:
         self.changed_files[file_path] = data 
     else:
         self.add_new_file(file_path, data)
