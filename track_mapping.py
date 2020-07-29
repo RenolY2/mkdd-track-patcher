@@ -5,8 +5,8 @@ bsft = [
     "AudioRes/Stream/COURSE_BEACH_0.x.32.c4.ast",
     "AudioRes/Stream/COURSE_CRUISER_0.x.32.c4.ast",
     "AudioRes/Stream/COURSE_CIRCUIT_0.x.32.c4.ast",
-    "AudioRes/Stream/COURSE_YCIRCUIT_0.x.32.c4.ast",
     "AudioRes/Stream/COURSE_MCIRCUIT_0.x.32.c4.ast",
+    "AudioRes/Stream/COURSE_YCIRCUIT_0.x.32.c4.ast",
     "AudioRes/Stream/COURSE_HIWAY_0.x.32.c4.ast",
     "AudioRes/Stream/COURSE_CITY_0.x.32.c4.ast",
     "AudioRes/Stream/COURSE_STADIUM_0.x.32.c4.ast",
@@ -21,8 +21,8 @@ bsft = [
     "AudioRes/Stream/FINALLAP_BEACH_0.x.32.c4.ast",
     "AudioRes/Stream/FINALLAP_CRUISER_0.x.32.c4.ast",
     "AudioRes/Stream/FINALLAP_CIRCUIT_0.x.32.c4.ast",
-    "AudioRes/Stream/FINALLAP_YCIRCUIT_0.x.32.c4.ast",
     "AudioRes/Stream/FINALLAP_MCIRCUIT_0.x.32.c4.ast",
+    "AudioRes/Stream/FINALLAP_YCIRCUIT_0.x.32.c4.ast",
     "AudioRes/Stream/FINALLAP_HIWAY_0.x.32.c4.ast",
     "AudioRes/Stream/FINALLAP_CITY_0.x.32.c4.ast",
     "AudioRes/Stream/FINALLAP_STADIUM_0.x.32.c4.ast",
@@ -85,6 +85,25 @@ arc_mapping = {
     "Tilt-a-Kart": ["Mini5", "mini5"],
     "Cookie Land": ["Mini7", "mini7"],
     "Pipe Plaza": ["Mini8", "mini8"]
+}
+
+music_mapping = {
+    "Baby Park": 33,
+    "Peach Beach": 34,
+    "Daisy Cruiser": 35,
+    "Luigi Circuit": 36,
+    "Mario Circuit": 37,
+    "Yoshi Circuit": 38,
+    "Mushroom Bridge": 40,
+    "Mushroom City": 41,
+    "Waluigi Stadium": 42,
+    "Wario Colosseum": 43,
+    "Dino Jungle": 44,
+    "DK Mountain": 45,
+    "Bowser Castle": 47,
+    "Rainbow Road": 49,
+    "Dry Dry Desert": 50,
+    "Sherbet Land": 51
 }
 
 file_mapping = {

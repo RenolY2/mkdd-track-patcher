@@ -3,13 +3,14 @@ import zipfile
 import json 
 import configparser
 import os 
+import struct 
 from io import BytesIO
 from tkinter import filedialog
 from tkinter import messagebox
 
 
 from gcm import GCM
-from track_mapping import arc_mapping, file_mapping, bsft, battle_mapping
+from track_mapping import music_mapping, arc_mapping, file_mapping, bsft, battle_mapping
 from dolreader import *
 from rarc import Archive, write_pad32, write_uint32
 from readbsft import BSFT
@@ -25,9 +26,27 @@ GAMEID_TO_REGION = {
 LANGUAGES = ["English", "Japanese", "German", "Italian", "French", "Spanish"]
 
 
+
 def copy_if_not_exist(iso, newfile, oldfile):
     if not iso.file_exists("files/"+newfile):
         iso.add_new_file("files/"+newfile, iso.read_file_data("files/"+oldfile))
+
+
+def patch_musicid(arc, new_music):
+    if new_music in music_mapping:
+        new_id = music_mapping[new_music]
+        
+        for filename in arc.root.files:
+            if filename.endswith("_course.bol"):
+                data = arc.root.files[filename]
+                data.seek(0x19)
+                id = data.read(1)[0]
+                if id in music_mapping.values():
+                    print("patched id from", id, "to", new_id)
+                    data.seek(0x19)
+                    data.write(struct.pack("B", new_id))
+                    data.seek(0x0)
+               
 
 
 def patch_baa(iso):
@@ -46,6 +65,7 @@ def patch_baa(iso):
     write_pad32(baa)
     bsft_offset = baa.tell()
     new_bsft.write_to_file(baa)
+    
     write_pad32(baa)
     baa.seek(bsftoffset)
     magic = baa.read(4)
@@ -448,6 +468,8 @@ class Application(tk.Frame):
                 dol._rawdata.seek(0)
                 patcher.change_file("sys/main.dol", dol._rawdata)
                 
+                patch_musicid(track_arc, replace_music)
+                patch_musicid(track_mp_arc, replace_music)
                 
                 rename_archive(track_arc, smallname, False)
                 rename_archive(track_mp_arc, smallname, True)
@@ -568,6 +590,7 @@ class Application(tk.Frame):
                 # copy_or_add_file function
                 if replace in file_mapping:
                     normal_music, fast_music = file_mapping[replace_music][0:2]
+                    print("replacing", normal_music, fast_music)
                     patcher.copy_or_add_file("lap_music_normal.ast", "files/AudioRes/Stream/{}".format(normal_music),
                         missing_ok=True)
                     patcher.copy_or_add_file("lap_music_fast.ast", "files/AudioRes/Stream/{}".format(fast_music),
