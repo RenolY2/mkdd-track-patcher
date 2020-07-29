@@ -46,10 +46,11 @@ class BSFT(object):
             offsets.append(f.tell()-bsft_start)
             f.write(bytes(path, encoding="ascii"))
             f.write(b"\x00")
-        
+        end = f.tell()
         f.seek(offset_start)
         for offset in offsets:
             write_uint32(f, offset)
+        f.seek(end)
         
 if __name__ == "__main__":
     import json 
