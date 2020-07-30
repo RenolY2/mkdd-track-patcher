@@ -16,6 +16,7 @@ from rarc import Archive, write_pad32, write_uint32
 from readbsft import BSFT
 from zip_helper import ZipToIsoPatcher
 from configuration import read_config, make_default_config, save_cfg
+from conflict_checker import Conflicts 
 
 GAMEID_TO_REGION = {
     b"GM4E": "US",
@@ -359,8 +360,11 @@ class Application(tk.Frame):
         
         at_least_1_track = False 
         
+        conflicts = Conflicts()
+        
         for track in self.input_mod_path.get_paths():
             print(track)
+            mod_name = os.path.basename(track)
             patcher.set_zip(track)
             
             
@@ -379,7 +383,7 @@ class Application(tk.Frame):
                 arcs, files = patcher.get_file_changes("files/")
                 for filepath in files:
                     patcher.copy_file("files/"+filepath, filepath)
-                
+                    conflicts.add_conflict(filepath, mod_name)
                 
                 for arc, arcfiles in arcs.items():
                     if arc == "race2d.arc":
@@ -396,7 +400,7 @@ class Application(tk.Frame):
                         #print("files/"+file)
                         patcher.copy_file_into_arc("files/"+arc+"/"+file,
                                     destination_arc, file, missing_ok=False)
-
+                        conflicts.add_conflict(arc+"/"+file, mod_name)
 
                     newarc = BytesIO()
                     destination_arc.write_arc_uncompressed(newarc)
@@ -414,6 +418,7 @@ class Application(tk.Frame):
                     for file in arcfiles:
                         patcher.copy_file_into_arc("files/race2d.arc/"+file,
                                     race2d_arc, file, missing_ok=False)
+                        conflicts.add_conflict("race2d.arc/"+file, mod_name)
                     
                     race2d_arc_file = mram_arc["mram/race2d.arc"]
                     race2d_arc_file.seek(0)
@@ -442,6 +447,8 @@ class Application(tk.Frame):
                 
                 minimap_settings = json.load(patcher.zip_open("minimap.json"))
                 
+                conflicts.add_conflict(replace, mod_name)
+                conflicts.add_conflict("music_"+replace_music, mod_name)
                 
                 
                 
@@ -590,7 +597,6 @@ class Application(tk.Frame):
                 # copy_or_add_file function
                 if replace in file_mapping:
                     normal_music, fast_music = file_mapping[replace_music][0:2]
-                    print("replacing", normal_music, fast_music)
                     patcher.copy_or_add_file("lap_music_normal.ast", "files/AudioRes/Stream/{}".format(normal_music),
                         missing_ok=True)
                     patcher.copy_or_add_file("lap_music_fast.ast", "files/AudioRes/Stream/{}".format(fast_music),
@@ -604,13 +610,39 @@ class Application(tk.Frame):
 
                 
         if at_least_1_track:
-            print("patched .baa file")
             patch_baa(iso)
-        print("loaded")
+            
+        print("patches applied")
         print("writing iso to", self.output_iso_path.path.get())
         #print("all changed files:", iso.changed_files.keys())
-        iso.export_disc_to_iso_with_changed_files(self.output_iso_path.path.get())
-        print("finished writing iso, you are good to go!") 
+        if conflicts.conflict_appeared:
+            resulting_conflicts = conflicts.get_conflicts()
+            warn_text = ("File change conflicts between mods were encountered.\n"
+                "Conflicts between the following mods exist:\n\n")
+            for i in range(min(len(resulting_conflicts), 5)):
+                warn_text += "{0}. ".format(i+1) + ", ".join(resulting_conflicts[i])
+                warn_text += "\n"
+            if len(resulting_conflicts) > 5:
+                warn_text += "And {} more".format(len(resulting_conflicts)-5)
+            
+            warn_text += ("\nIf you continue patching, the new ISO might be inconsistent. \n"
+                "Do you want to continue patching? \n")
+            
+            do_continue = messagebox.askyesno("Warning", 
+                warn_text)
+            
+            if not do_continue:
+                messagebox.showinfo("Info", "ISO patching cancelled.")
+                return 
+        try:
+            iso.export_disc_to_iso_with_changed_files(self.output_iso_path.path.get())
+        except Exception as error:
+            messagebox.showerror("Error", "Error while writing ISO: {0}".format(str(error)))
+            raise 
+        else:
+            messagebox.showinfo("Info", "New ISO successfully created!")
+            
+            print("finished writing iso, you are good to go!") 
         
     def say_hi(self):
         print("hi there, everyone!")
