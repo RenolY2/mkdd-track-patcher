@@ -43,7 +43,6 @@ def patch_musicid(arc, new_music):
                 data.seek(0x19)
                 id = data.read(1)[0]
                 if id in music_mapping.values():
-                    print("patched id from", id, "to", new_id)
                     data.seek(0x19)
                     data.write(struct.pack("B", new_id))
                     data.seek(0x0)
