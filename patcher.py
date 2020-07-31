@@ -26,7 +26,7 @@ GAMEID_TO_REGION = {
 
 LANGUAGES = ["English", "Japanese", "German", "Italian", "French", "Spanish"]
 
-
+VERSION = "1.0"
 
 def copy_if_not_exist(iso, newfile, oldfile):
     if not iso.file_exists("files/"+newfile):
@@ -284,6 +284,7 @@ class Application(tk.Frame):
         super().__init__(master)
         self.master = master
         
+        
         self.pack()
         
         try:
@@ -295,7 +296,7 @@ class Application(tk.Frame):
         
         self.create_widgets()
         
-        
+
     
     def make_open_button(self, master):
         button = tk.Button(master)
@@ -654,10 +655,46 @@ class Application(tk.Frame):
         
     def say_hi(self):
         print("hi there, everyone!")
+
+class About(tk.Frame):
+    def __init__(self, master=None):
+        super().__init__(master)
+        self.master = master
+        self.pack()
+        self.text = tk.Text(master, height=4)
+        w.insert(1.0, "Hello World")
+        w.pack()
         
+
+
+
 if __name__ == "__main__":
+
     root = tk.Tk()
+    
+    def show_about():
+        #about_text = "MKDD Patcher {0} by Yoshi2".format(VERSION)
+        #about_text += "\nNew releases: https://github.com/RenolY2/mkdd-track-patcher/releases"
+        #about_text += "\nReport bugs at: https://github.com/RenolY2/mkdd-track-patcher/issues"
+        #messagebox.showinfo("About", about_text)
+        about = tk.Toplevel(root)
+        text = tk.Text(about, height=4)
+        text.insert(1.0, "MKDD Patcher {0} by Yoshi2\n".format(VERSION))
+        text.insert(2.0, "New releases: https://github.com/RenolY2/mkdd-track-patcher/releases\n")
+        text.insert(3.0, "Report bugs at: https://github.com/RenolY2/mkdd-track-patcher/issues")
+        text.pack()
+        text.configure(state="disabled")
+        
+    
+    
+    
+    
+    
+    
     root.title("MKDD Patcher")
     root.iconbitmap('resources/icon.ico')
+    menubar = tk.Menu(root)
+    menubar.add_command(label="About", command=show_about)
+    root.config(menu=menubar)
     app = Application(master=root)
     app.mainloop()
