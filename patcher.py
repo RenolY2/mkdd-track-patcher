@@ -681,7 +681,7 @@ if __name__ == "__main__":
         text = tk.Text(about, height=4)
         text.insert(1.0, "MKDD Patcher {0} by Yoshi2\n".format(VERSION))
         text.insert(2.0, "New releases: https://github.com/RenolY2/mkdd-track-patcher/releases\n")
-        text.insert(3.0, "Report bugs at: https://github.com/RenolY2/mkdd-track-patcher/issues")
+        text.insert(3.0, "Post suggestions or bug reports at: https://github.com/RenolY2/mkdd-track-patcher/issues")
         text.pack()
         text.configure(state="disabled")
         
