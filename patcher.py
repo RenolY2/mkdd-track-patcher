@@ -361,6 +361,8 @@ class Application(tk.Frame):
         
         conflicts = Conflicts()
         
+        skipped = 0
+        
         for track in self.input_mod_path.get_paths():
             print(track)
             mod_name = os.path.basename(track)
@@ -430,7 +432,7 @@ class Application(tk.Frame):
                     
                     patcher.change_file("files/MRAM.arc", newarc)
                 
-            else:
+            elif patcher.src_file_exists("trackinfo.ini"):
                 at_least_1_track = True 
                 trackinfo = patcher.zip_open("trackinfo.ini")
                 config.read_string(str(trackinfo.read(), encoding="utf-8"))
@@ -606,13 +608,15 @@ class Application(tk.Frame):
                     if not patcher.src_file_exists("lap_music_fast.ast"):
                         patcher.copy_or_add_file("lap_music_normal.ast", "files/AudioRes/Stream/{}".format(fast_music),
                             missing_ok=True)
-
+            else:
+                print("not a race track or mod, skipping...")
+                skipped += 1
                 
         if at_least_1_track:
             patch_baa(iso)
             
         print("patches applied")
-        print("writing iso to", self.output_iso_path.path.get())
+        
         #print("all changed files:", iso.changed_files.keys())
         if conflicts.conflict_appeared:
             resulting_conflicts = conflicts.get_conflicts()
@@ -633,13 +637,18 @@ class Application(tk.Frame):
             if not do_continue:
                 messagebox.showinfo("Info", "ISO patching cancelled.")
                 return 
+        print("writing iso to", self.output_iso_path.path.get())
         try:
             iso.export_disc_to_iso_with_changed_files(self.output_iso_path.path.get())
         except Exception as error:
             messagebox.showerror("Error", "Error while writing ISO: {0}".format(str(error)))
             raise 
         else:
-            messagebox.showinfo("Info", "New ISO successfully created!")
+            if skipped == 0:
+                messagebox.showinfo("Info", "New ISO successfully created!")
+            else:
+                messagebox.showinfo("Info", ("New ISO successfully created!\n"
+                    "{0} zip file(s) skipped due to not being race tracks or mods.".format(skipped)))
             
             print("finished writing iso, you are good to go!") 
         
