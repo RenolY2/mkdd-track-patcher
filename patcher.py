@@ -671,7 +671,7 @@ class About(tk.Frame):
 if __name__ == "__main__":
 
     root = tk.Tk()
-    
+    root.geometry("350x150")
     def show_about():
         #about_text = "MKDD Patcher {0} by Yoshi2".format(VERSION)
         #about_text += "\nNew releases: https://github.com/RenolY2/mkdd-track-patcher/releases"
