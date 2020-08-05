@@ -450,7 +450,7 @@ class Application(tk.Frame):
                 minimap_settings = json.load(patcher.zip_open("minimap.json"))
                 
                 conflicts.add_conflict(replace, mod_name)
-                conflicts.add_conflict("music_"+replace_music, mod_name)
+                
                 
                 
                 
@@ -609,6 +609,7 @@ class Application(tk.Frame):
                     if not patcher.src_file_exists("lap_music_fast.ast"):
                         patcher.copy_or_add_file("lap_music_normal.ast", "files/AudioRes/Stream/{}".format(fast_music),
                             missing_ok=True)
+                    conflicts.add_conflict("music_"+replace_music, mod_name)
             else:
                 print("not a race track or mod, skipping...")
                 skipped += 1
