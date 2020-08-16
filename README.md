@@ -49,7 +49,7 @@ The trackinfo file needs to contain the following data
 
 
 with author and trackname being the name of the author and the name of the custom track respectively. \
-replaces is the name of the track being replaced and can be one of the following: \
+replaces is the name of the track being replaced and can be one of the following: 
 
     Baby Park 
     Peach Beach 
