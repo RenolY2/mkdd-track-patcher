@@ -506,7 +506,7 @@ class Application(tk.Frame):
                         patcher.change_file("files/Course/Luigi.arc", newarc)
                         
                     if patcher.src_file_exists("track_mp_50cc.arc"):
-                        patcher.copy_file("track_50cc.arc", "files/Course/LuigiL.arc")
+                        patcher.copy_file("track_mp_50cc.arc", "files/Course/LuigiL.arc")
                     else:
                         rename_archive(track_mp_arc, "luigi", True)
                         
