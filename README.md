@@ -1,7 +1,8 @@
 ### MKDD Patcher 
 By Yoshi2 \
 New releases can be found here: https://github.com/RenolY2/mkdd-track-patcher/releases \
-Report bugs or suggest improvements here: https://github.com/RenolY2/mkdd-track-patcher/issues 
+Report bugs or suggest improvements here: https://github.com/RenolY2/mkdd-track-patcher/issues \
+Interested in MKDD modding? Check out Double Crew, a MKDD modding community: http://discord.gg/fUU36aH
 
 The MKDD Patcher is a tool which allows users to easily import custom MKDD tracks 
 and other file-based mods (e.g custom drivers, custom karts) into Mario Kart Double Dash.
