@@ -137,3 +137,5 @@ assign a music id from a race track to them in the MKDD Track Editor)
 
 
 ### Running from source code
+Get the source code of the patcher from https://github.com/RenolY2/mkdd-track-patcher
+Install Python 3 version 3.8 or newer and run patcher.py with it.
