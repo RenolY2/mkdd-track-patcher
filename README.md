@@ -134,3 +134,6 @@ offset is modified so that the minimap won't clip outside of the screen boundary
 3) For custom race tracks, the GCKart.baa file is patched so that every race track in the game has a unique music track instead
 of sharing the same music. (Battle tracks are excluded from this, their music id is hardcoded to play the same music unless you 
 assign a music id from a race track to them in the MKDD Track Editor)
+
+
+### Running from source code
