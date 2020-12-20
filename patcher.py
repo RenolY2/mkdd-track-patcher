@@ -384,7 +384,7 @@ class Application(tk.Frame):
                 
                 arcs, files = patcher.get_file_changes("files/")
                 for filepath in files:
-                    patcher.copy_file("files/"+filepath, filepath)
+                    patcher.copy_file("files/"+filepath, "files/"+filepath)
                     conflicts.add_conflict(filepath, mod_name)
                 
                 for arc, arcfiles in arcs.items():
