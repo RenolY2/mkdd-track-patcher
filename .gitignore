@@ -2,5 +2,8 @@ bin/
 lib/
 lib64
 share/
+
 src/__pycache__/
+src/config.ini
+
 pyvenv.cfg
