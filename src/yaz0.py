@@ -3,15 +3,18 @@
 ## Implementation of a yaz0 decoder/encoder in Python, by Yoshi2
 ## Using the specifications in http://www.amnoid.de/gc/yaz0.txt
 
-from struct import unpack, pack
 import os
 import re
-import hashlib
 import math
+import hashlib
+import logging
 
-from timeit import default_timer as time
 from io import BytesIO
+from struct import unpack, pack
+from timeit import default_timer as time
 #from cStringIO import StringIO
+
+log = logging.getLogger(__name__)
 
 #class yaz0():
 #    def __init__(self, inputobj, outputobj = None, compress = False):
@@ -130,8 +133,8 @@ def decompress(f, out, suppress_error=False):
         #print("this isn't right")
         raise RuntimeError("Didn't decompress correctly, notify the developer!")
     if out.tell() > decompressed_size:
-        print(  "Warning: output is longer than decompressed size for some reason: "
-                "{}/decompressed: {}".format(out.tell(), decompressed_size))
+        log.warning(f"Warning: output is longer than decompressed size for some reason: "
+                    f"{out.tell()}/decompressed: {decompressed_size}")
 
 
 def compress_fast(f, out):
@@ -144,15 +147,15 @@ def compress_fast(f, out):
     out.write(b"\x00"*8)
 
     out_write = out.write
-    print("size:", hex(maxsize))
-    print(maxsize//8, maxsize/8.0)
+    log.info(f"size: {hex(maxsize)}")
+    log.info(maxsize//8, maxsize/8.0)
     for i in range(int(math.ceil(maxsize/8))):
         start = i*8 
         end = (i+1)*8
         if end > maxsize:
             # Pad data with 0's up to 8 bytes
             tocopy = data[start:maxsize] + b"\x00"*(end-maxsize)
-            print("padded")
+            log.info("Padded")
         else:
             tocopy = data[start:end]
         

@@ -1,3 +1,7 @@
+import logging
+
+log = logging.getLogger(__name__)
+
 class Conflicts(object):
     def __init__(self):
         self._conflict_candidates = {}
@@ -48,4 +52,4 @@ if __name__ == "__main__":
     conflict.add_conflict("C", "Hey its not me")
     conflict.add_conflict("C", "Hey its also not me")
     conflict.add_conflict("C", "Hey its also not me 2")
-    print(conflict.get_conflicts())
+    log.info(conflict.get_conflicts())

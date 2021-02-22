@@ -1,13 +1,16 @@
+import logging
 import configparser
+
+log = logging.getLogger(__name__)
 
 CONFIG_NAME = "config.ini"
 
 def read_config():
-    print("reading")
+    log.info("Reading configuration...")
     cfg = configparser.ConfigParser()
     with open(CONFIG_NAME, "r") as f:
         cfg.read_file(f)
-    print("read")
+    log.info("Configuration read")
     return cfg
 
 
