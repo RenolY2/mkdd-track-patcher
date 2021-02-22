@@ -1,6 +1,13 @@
+import sys
+import logging
 import tkinter as tk
+from tkinter import filedialog
+from tkinter import messagebox
 
 from patcher import *
+
+logging.basicConfig(stream=sys.stdout, level=logging.INFO, format="> %(message)s")
+log = logging.getLogger(__name__)
 
 class ChooseFilePath(tk.Frame):
     def __init__(self, master=None, description=None, file_chosen_callback=None, save=False, config=None):
@@ -37,7 +44,7 @@ class ChooseFilePath(tk.Frame):
                 title="Choose a MKDD GCM/ISO",
                 filetypes=(("GameCube Disc Image", "*.iso *.gcm"), ))
         
-        #print("path:" ,path)
+        #log.info("path:" ,path)
         if path:
             self.path.delete(0, tk.END)
             self.path.insert(0, path)
@@ -83,7 +90,7 @@ class ChooseFilePathMultiple(tk.Frame):
         title="Choose Race Track zip file(s)", 
         filetypes=(("MKDD Track Zip", "*.zip"), ))
         
-        #print("path:" ,path)
+        #log.info("path:" ,path)
         if len(paths) > 0:
             self.path.delete(0, tk.END)
             self.path.insert(0, paths[0])
@@ -113,9 +120,9 @@ class Application(tk.Frame):
         
         try:
             self.configuration = read_config()
-            print("Config file loaded")
+            log.info("Config file loaded")
         except FileNotFoundError as e:
-            print("No config file found, creating default config...")
+            log.warning("No config file found, creating default config...")
             self.configuration = make_default_config()
         
         self.create_widgets()
@@ -156,9 +163,9 @@ class Application(tk.Frame):
         self.quit.pack(side="left")"""
     
     def patch(self):
-        print("Input iso:", self.input_iso_path.path.get())
-        print("Input track:", self.input_mod_path.path.get())
-        print("Output iso:", self.output_iso_path.path.get())
+        log.info(f"Input iso: {self.input_iso_path.path.get()}")
+        log.info(f"Input track: {self.input_mod_path.path.get()}")
+        log.info(f"Output iso: {self.output_iso_path.path.get()}")
         
         if not self.input_iso_path.path.get():
             messagebox.showerror("Error", "You need to choose a MKDD ISO or GCM.")
@@ -175,7 +182,7 @@ class Application(tk.Frame):
             return 
             
         region = GAMEID_TO_REGION[gameid]
-        print("Patching now")
+        log.info("Patching now")
         isopath = self.input_iso_path.path.get()
         iso = GCM(isopath)
         iso.read_entire_disc()
@@ -189,21 +196,21 @@ class Application(tk.Frame):
         skipped = 0
         
         for track in self.input_mod_path.get_paths():
-            print(track)
+            log.info(track)
             mod_name = os.path.basename(track)
             patcher.set_zip(track)
             
             
             config = configparser.ConfigParser()
-            #print(trackzip.namelist())
+            #log.info(trackzip.namelist())
             if patcher.src_file_exists("modinfo.ini"):
                 
                 modinfo = patcher.zip_open("modinfo.ini")
                 config.read_string(str(modinfo.read(), encoding="utf-8"))
-                print("Mod", config["Config"]["modname"], "by", config["Config"]["author"])
-                print("Description:", config["Config"]["description"])
+                log.info(f"Mod {config['Config']['modname']} by {config['Config']['author']}")
+                log.info(f"Description: {config['Config']['description']}")
                 # patch files 
-                #print(trackzip.namelist())
+                #log.info(trackzip.namelist())
                 
                 
                 arcs, files = patcher.get_file_changes("files/")
@@ -219,11 +226,11 @@ class Application(tk.Frame):
                     if not iso.file_exists(srcarcpath):
                         continue 
                         
-                    #print("Loaded arc:", arc)
+                    #log.info("Loaded arc:", arc)
                     destination_arc = Archive.from_file(patcher.get_iso_file(srcarcpath))
 
                     for file in arcfiles:
-                        #print("files/"+file)
+                        #log.info("files/"+file)
                         patcher.copy_file_into_arc("files/"+arc+"/"+file,
                                     destination_arc, file, missing_ok=False)
                         conflicts.add_conflict(arc+"/"+file, mod_name)
@@ -236,7 +243,7 @@ class Application(tk.Frame):
                 
                 if "race2d.arc" in arcs:
                     arcfiles = arcs["race2d.arc"]
-                    #print("Loaded race2d arc")
+                    #log.info("Loaded race2d arc")
                     mram_arc = Archive.from_file(patcher.get_iso_file("files/MRAM.arc"))
                     
                     race2d_arc = Archive.from_file(mram_arc["mram/race2d.arc"])
@@ -266,10 +273,9 @@ class Application(tk.Frame):
                 replace = config["Config"]["replaces"].strip()
                 replace_music = config["Config"]["replaces_music"].strip()
                 
-                print("Imported Track Info:")
-                print("Track '{0}' created by {1} replaces {2}".format(
-                    config["Config"]["trackname"], config["Config"]["author"], config["Config"]["replaces"])
-                    )
+                log.info("Imported Track Info:")
+                log.info(f"Track '{config['Config']['trackname']}' created by "
+                         f"{config['Config']['author']} replaces {config['Config']['replaces']}")
                 
                 minimap_settings = json.load(patcher.zip_open("minimap.json"))
                 
@@ -316,7 +322,7 @@ class Application(tk.Frame):
                 patcher.change_file("files/Course/{}.arc".format(bigname), newarc)
                 patcher.change_file("files/Course/{}L.arc".format(bigname), newarc_mp)
              
-                print("replacing", "files/Course/{}.arc".format(bigname))
+                log.info(f"replacing files/Course/{bigname}.arc")
                 
                 
                 if replace == "Luigi Circuit":
@@ -364,7 +370,7 @@ class Application(tk.Frame):
                     if not iso.file_exists(coursename_arc_path):
                         continue 
                     
-                    #print("Found language", language)
+                    #log.info("Found language", language)
                     patcher.copy_file("course_images/{}/track_big_logo.bti".format(srclanguage),
                                         "files/CourseName/{}/{}_name.bti".format(dstlanguage, bigname))
                                         
@@ -435,15 +441,15 @@ class Application(tk.Frame):
                             missing_ok=True)
                     conflicts.add_conflict("music_"+replace_music, mod_name)
             else:
-                print("not a race track or mod, skipping...")
+                log.warning("not a race track or mod, skipping...")
                 skipped += 1
                 
         if at_least_1_track:
             patch_baa(iso)
             
-        print("patches applied")
+        log.info("patches applied")
         
-        #print("all changed files:", iso.changed_files.keys())
+        #log.info("all changed files:", iso.changed_files.keys())
         if conflicts.conflict_appeared:
             resulting_conflicts = conflicts.get_conflicts()
             warn_text = ("File change conflicts between mods were encountered.\n"
@@ -463,7 +469,7 @@ class Application(tk.Frame):
             if not do_continue:
                 messagebox.showinfo("Info", "ISO patching cancelled.")
                 return 
-        print("writing iso to", self.output_iso_path.path.get())
+        log.info(f"writing iso to {self.output_iso_path.path.get()}")
         try:
             iso.export_disc_to_iso_with_changed_files(self.output_iso_path.path.get())
         except Exception as error:
@@ -476,10 +482,10 @@ class Application(tk.Frame):
                 messagebox.showinfo("Info", ("New ISO successfully created!\n"
                     "{0} zip file(s) skipped due to not being race tracks or mods.".format(skipped)))
             
-            print("finished writing iso, you are good to go!") 
+            log.info("finished writing iso, you are good to go!") 
         
     def say_hi(self):
-        print("hi there, everyone!")
+        log.info("hi there, everyone!")
 
 class About(tk.Frame):
     def __init__(self, master=None):

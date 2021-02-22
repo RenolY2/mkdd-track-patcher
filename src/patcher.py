@@ -3,11 +3,9 @@ import json
 import struct 
 import zipfile
 import pathlib
+import logging
 import configparser
-import tkinter as tk
 from io import BytesIO
-from tkinter import filedialog
-from tkinter import messagebox
 
 
 from gcm import GCM
@@ -18,6 +16,8 @@ from conflict_checker import Conflicts
 from rarc import Archive, write_pad32, write_uint32
 from configuration import read_config, make_default_config, save_cfg
 from track_mapping import music_mapping, arc_mapping, file_mapping, bsft, battle_mapping
+
+log = logging.getLogger(__name__)
 
 GAMEID_TO_REGION = {
     b"GM4E": "US",
@@ -92,7 +92,7 @@ def patch_baa(iso):
     assert magic == b"bsft"
     write_uint32(baa, bsft_offset)
     iso.changed_files["files/AudioRes/GCKart.baa"] = baa
-    print("patched baa")
+    log.info("patched baa")
     
     copy_if_not_exist(iso, "AudioRes/Stream/COURSE_YCIRCUIT_0.x.32.c4.ast", "AudioRes/Stream/COURSE_CIRCUIT_0.x.32.c4.ast")
     copy_if_not_exist(iso, "AudioRes/Stream/COURSE_MCIRCUIT_0.x.32.c4.ast", "AudioRes/Stream/COURSE_CIRCUIT_0.x.32.c4.ast")
@@ -111,7 +111,7 @@ def patch_baa(iso):
     copy_if_not_exist(iso, "AudioRes/Stream/FINALLAP_COLOSSEUM_0.x.32.c4.ast", "AudioRes/Stream/FINALLAP_STADIUM_0.x.32.c4.ast")
     copy_if_not_exist(iso, "AudioRes/Stream/FINALLAP_MOUNTAIN_0.x.32.c4.ast", "AudioRes/Stream/FINALLAP_JUNGLE_0.x.32.c4.ast")
     
-    print("Copied ast files")
+    log.info("Copied ast files")
 
 
 def patch_minimap_dol(dol, track, region, minimap_setting, intended_track=True):
@@ -189,10 +189,7 @@ def rename_archive(arc, newname, mp):
         newname (str): New name to change to
         mp (bool): Whether to modify the multiplayer level or not
     """
-    if mp:
-        arc.root.name = newname+"l"
-    else:
-        arc.root.name = newname 
+    arc.root.name = newname+"l" if mp else newname
     
     rename = []
     
