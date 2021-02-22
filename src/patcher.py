@@ -124,7 +124,7 @@ def patch_minimap_dol(dol, track, region, minimap_setting, intended_track=True):
         minimap_setting (dict): Minimap settings
         intended_track (bool, optional): Run extra operations if False. Defaults to True.
     """
-    with open("resources/minimap_locations.json", "r") as f:
+    with open(str(pathlib.Path(__file__).parent.absolute()) + "/resources/minimap_locations.json", "r") as f:
         addresses_json = json.load(f)
         addresses = addresses_json[region]
         corner1x, corner1z, corner2x, corner2z, orientation = addresses[track]
