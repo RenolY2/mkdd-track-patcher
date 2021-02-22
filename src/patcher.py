@@ -1,22 +1,23 @@
-import tkinter as tk
-import zipfile
-import json 
-import configparser
 import os 
+import json 
 import struct 
+import zipfile
+import pathlib
+import configparser
+import tkinter as tk
 from io import BytesIO
 from tkinter import filedialog
 from tkinter import messagebox
 
 
 from gcm import GCM
-from track_mapping import music_mapping, arc_mapping, file_mapping, bsft, battle_mapping
 from dolreader import *
-from rarc import Archive, write_pad32, write_uint32
 from readbsft import BSFT
 from zip_helper import ZipToIsoPatcher
-from configuration import read_config, make_default_config, save_cfg
 from conflict_checker import Conflicts 
+from rarc import Archive, write_pad32, write_uint32
+from configuration import read_config, make_default_config, save_cfg
+from track_mapping import music_mapping, arc_mapping, file_mapping, bsft, battle_mapping
 
 GAMEID_TO_REGION = {
     b"GM4E": "US",
@@ -29,11 +30,24 @@ LANGUAGES = ["English", "Japanese", "German", "Italian", "French", "Spanish"]
 VERSION = "1.0"
 
 def copy_if_not_exist(iso, newfile, oldfile):
+    """Copy a file if and only if it doesn't exist
+
+    Args:
+        iso (file): ISO gamefile
+        newfile (file): New file
+        oldfile (file): Old file
+    """
     if not iso.file_exists("files/"+newfile):
         iso.add_new_file("files/"+newfile, iso.read_file_data("files/"+oldfile))
 
 
 def patch_musicid(arc, new_music):
+    """Patch music ID of arc file
+
+    Args:
+        arc (file): arc file
+        new_music (str): music_mapping key name
+    """
     if new_music in music_mapping:
         new_id = music_mapping[new_music]
         
@@ -50,6 +64,11 @@ def patch_musicid(arc, new_music):
 
 
 def patch_baa(iso):
+    """Patch GCKart.baa
+
+    Args:
+        iso (file): ISO gamefile
+    """
     baa = iso.read_file_data("files/AudioRes/GCKart.baa")
     baadata = baa.read()
     
@@ -693,7 +712,10 @@ if __name__ == "__main__":
     
     
     root.title("MKDD Patcher")
-    root.iconbitmap('resources/icon.ico')
+    try:
+        root.iconbitmap(str(pathlib.Path(__file__).parent.absolute()) + '/resources/icon.ico')
+    except:
+        pass
     menubar = tk.Menu(root)
     menubar.add_command(label="About", command=show_about)
     root.config(menu=menubar)
