@@ -1,11 +1,15 @@
-from struct import pack, unpack
+import os 
+import time
+import logging
+import tempfile
+import subprocess 
+
 from io import BytesIO
 from itertools import chain
+from struct import pack, unpack
 from yaz0 import decompress, compress_fast, read_uint32, read_uint16
-import subprocess 
-import time
-import os 
-import tempfile
+
+log = logging.getLogger(__name__)
 
 def write_uint32(f, val):
     f.write(pack(">I", val))
@@ -20,8 +24,8 @@ def write_pad32(f):
     next_aligned_pos = (f.tell() + 0x1F) & ~0x1F
 
     f.write(b"\x00"*(next_aligned_pos - f.tell()))
-    #print(hex(f.tell()))
-    #print(hex(next_aligned_pos))
+    #log.info(hex(f.tell()))
+    #log.info(hex(next_aligned_pos))
 
 
 class CompressionSetting(object):
@@ -37,7 +41,7 @@ class CompressionSetting(object):
         os.close(handle)
         filedata = file.getvalue()
         with open(abspath, "wb") as f:
-            #print("writing to", abspath)
+            #log.info("writing to", abspath)
             f.write(filedata)
             f.close()
         
@@ -46,7 +50,7 @@ class CompressionSetting(object):
         try:
             subprocess.run(args, check=True)
         except Exception as err:
-            print("Encountered error, cleaning up...")
+            log.error("Encountered error, cleaning up...")
             os.remove(abspath)
             raise 
             
@@ -59,7 +63,7 @@ class CompressionSetting(object):
         if len(filedata) >= len(compressed_data):
             return compressed_data 
         else:
-            print("Compressed data bigger than original, using uncompressed data")
+            log.warning("Compressed data bigger than original, using uncompressed data")
             return filedata 
 
 
@@ -83,9 +87,9 @@ class FileListing(object):
     @classmethod
     def from_flags(cls, flags):
         if flags & 0x40:
-            print("Unknown flag 0x40 set")
+            log.info("Unknown flag 0x40 set")
         if flags & 0x8:
-            print("Unknown flag 0x8 set")
+            log.info("Unknown flag 0x8 set")
             
         return cls( flags & FILE != 0,
                     flags & DIRECTORY != 0,
@@ -201,8 +205,8 @@ def stringtable_get_name(f, stringtable_offset, offset):
     try:
         decodedfilename = filename.decode("shift-jis")
     except:
-        print("filename", filename)
-        print("failed")
+        log.error(f"filename: {filename}")
+        log.error("failed")
         raise
     f.seek(current)
 
@@ -294,9 +298,9 @@ class Directory(object):
                     newparents.extend(parents)
 
                 if nodeindex in newparents:
-                    print("Detected recursive directory: ", name)
-                    print(newparents, nodeindex)
-                    print("Skipping")
+                    log.warning(f"Detected recursive directory: {name}")
+                    log.warning(f"{newparents} {nodeindex}")
+                    log.warning(f"Skipping")
                     continue
 
                 subdir = Directory.from_node(f, name, stringtable_offset, globalentryoffset, dataoffset, nodelist, nodeindex, parents=newparents)
@@ -307,9 +311,9 @@ class Directory(object):
 
             else: # entry is a file
                 if flags & COMPRESSED:
-                    print("File is compressed")
+                    log.info("File is compressed")
                 if flags & YAZ0:
-                    print("File is yaz0 compressed")
+                    log.info("File is yaz0 compressed")
                 f.seek(offset)
                 file = File.from_fileentry(f, stringtable_offset, dataoffset, fileid, hashcode, flags, nameoffset, filedataoffset, datasize)
                 newdir.files[file.name] = file
@@ -413,7 +417,7 @@ class File(BytesIO):
             self.filetype = FileListing.default()
     def is_yaz0_compressed(self):
         if self._flags & COMPRESSED and not self._flags & YAZ0:
-            print("Warning, file {0} is compressed but not with yaz0!".format(self.name))
+            log.warning(f"Warning, file {self.name} is compressed but not with yaz0!")
         return self.filetype.compressed and self.filetype.yaz0
     
     @classmethod
@@ -470,7 +474,7 @@ class Archive(object):
 
         if header == b"Yaz0":
             # Decompress first
-            print("Yaz0 header detected, decompressing...")
+            log.info("Yaz0 header detected, decompressing...")
             start = time.time()
             tmp = BytesIO()
             f.seek(0)
@@ -481,8 +485,8 @@ class Archive(object):
             f.seek(0)
 
             header = f.read(4)
-            print("Finished decompression.")
-            print("Time taken:", time.time() - start)
+            log.info("Finished decompression.")
+            log.info(f"Time taken: {time.time() - start}")
 
         if header == b"RARC":
             pass
