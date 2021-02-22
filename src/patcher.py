@@ -48,18 +48,20 @@ def patch_musicid(arc, new_music):
         arc (file): arc file
         new_music (str): music_mapping key name
     """
-    if new_music in music_mapping:
-        new_id = music_mapping[new_music]
+
+    new_id = music_mapping.get(new_music)
+    if not new_id:
+        return
         
-        for filename in arc.root.files:
-            if filename.endswith("_course.bol"):
-                data = arc.root.files[filename]
+    for filename in arc.root.files:
+        if filename.endswith("_course.bol"):
+            data = arc.root.files[filename]
+            data.seek(0x19)
+            id = data.read(1)[0]
+            if id in music_mapping.values():
                 data.seek(0x19)
-                id = data.read(1)[0]
-                if id in music_mapping.values():
-                    data.seek(0x19)
-                    data.write(struct.pack("B", new_id))
-                    data.seek(0x0)
+                data.write(struct.pack("B", new_id))
+                data.seek(0x0)
                
 
 
@@ -113,6 +115,15 @@ def patch_baa(iso):
     print("Copied ast files")
     
 def patch_minimap_dol(dol, track, region, minimap_setting, intended_track=True):
+    """Patch minimap DOL
+
+    Args:
+        dol (file): Minimap DOL file
+        track (str): Track name
+        region (str): Game region (US/PAL/JP)
+        minimap_setting (dict): Minimap settings
+        intended_track (bool, optional): Run extra operations if False. Defaults to True.
+    """
     with open("resources/minimap_locations.json", "r") as f:
         addresses_json = json.load(f)
         addresses = addresses_json[region]
@@ -171,6 +182,13 @@ def patch_minimap_dol(dol, track, region, minimap_setting, intended_track=True):
             
 
 def rename_archive(arc, newname, mp):
+    """Renames arc file
+
+    Args:
+        arc (str): arc file name
+        newname (str): New name to change to
+        mp (bool): Whether to modify the multiplayer level or not
+    """
     if mp:
         arc.root.name = newname+"l"
     else:
