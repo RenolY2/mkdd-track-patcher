@@ -1,9 +1,10 @@
 import logging
+import pathlib
 import configparser
 
 log = logging.getLogger(__name__)
 
-CONFIG_NAME = "config.ini"
+CONFIG_NAME = str(pathlib.Path(__file__).parent.absolute()) + "/config.ini"
 
 def read_config():
     log.info("Reading configuration...")

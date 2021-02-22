@@ -1,3 +1,7 @@
+import logging
+
+log = logging.getLogger(__name__)
+
 # Map track name to file name in CourseName (big track banner), SceneData/coursename.arc (small track banner), 
 # courseselect.arc (coname, track name) and courseselect.arc (cop, track image)
 bsft = [
@@ -173,10 +177,10 @@ if __name__ == "__main__":
     for key, names in file_mapping.items():
         if "(Own Music)" not in key:
             lap, fastlap = names[0:2]
-            print(lap)
+            log.info(lap)
             with open(path.join("AudioRes", "Stream", lap), "r") as f:
                 pass 
-            print(fastlap)
+            log.info(fastlap)
             with open(path.join("AudioRes", "Stream", fastlap), "r") as f:
                 pass 
         name, names, coname, cop = names[2:6]
@@ -194,7 +198,7 @@ if __name__ == "__main__":
             arc["courseselect"]["timg"][cop]
         
         
-        print(key)
+        log.info(key)
         
     for key in file_mapping:
         assert key in arc_mapping
