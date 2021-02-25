@@ -72,12 +72,12 @@ class DolFile(object):
             if i <= 6:
                 if offset != 0:
                     self._text.append((offset, address, size))
-                    # print("text{0}".format(i), hex(offset), hex(address), hex(size))
+                    log.debug(f"text{i} {hex(offset)} {hex(address)} {hex(size)}")
             else:
                 datanum = i - 7
                 if offset != 0:
                     self._data.append((offset, address, size))
-                    # print("data{0}".format(datanum), hex(offset), hex(address), hex(size))
+                    log.debug(f"text{i} {hex(offset)} {hex(address)} {hex(size)}")
         
         f.seek(0xD8)
         self.bssaddr = read_uint32(f)

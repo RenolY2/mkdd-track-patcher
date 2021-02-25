@@ -234,12 +234,12 @@ class Directory(object):
     @classmethod
     def from_dir(cls, path, follow_symlinks=False):
         dirname = os.path.basename(path)
-        #print(dirname, path)
+        log.debug(f"{dirname} {path}")
         dir = cls(dirname)
 
         #with os.scandir(path) as entries: <- not supported in versions earlier than 3.6 apparently
         for entry in os.scandir(path):
-            #print(entry.path, dirname)
+            log.debug(f"{entry.path} {dirname}")
             if entry.is_dir(follow_symlinks=follow_symlinks):
                 newdir = Directory.from_dir(entry.path, follow_symlinks=follow_symlinks)
                 dir.subdirs[entry.name] = newdir
@@ -256,8 +256,8 @@ class Directory(object):
 
     @classmethod
     def from_node(cls, f, _name, stringtable_offset, globalentryoffset, dataoffset, nodelist, currentnodeindex, parents=None):
-        #print("=============================")
-        #print("Creating new node with index", currentnodeindex)
+        log.debug("=============================")
+        log.debug(f"Creating new node with index {currentnodeindex}")
         name, unknown, entrycount, entryoffset = nodelist[currentnodeindex]
         if name is None:
             name = _name 
@@ -265,8 +265,8 @@ class Directory(object):
         newdir = cls(name, currentnodeindex)
 
         firstentry = globalentryoffset+entryoffset
-        #print("Node", currentnodeindex, name, entrycount, entryoffset)
-        #print("offset", f.tell())
+        log.debug(f"Node {currentnodeindex} {name} {entrycount} {entryoffset}")
+        log.debug(f"offset {f.tell()}")
         for i in range(entrycount):
             offset = globalentryoffset + (entryoffset+i)*20
             f.seek(offset)
@@ -274,15 +274,15 @@ class Directory(object):
             fileentry_data = f.read(20)
 
             fileid, hashcode, flags, padbyte, nameoffset, filedataoffset, datasize, padding = unpack(">HHBBHIII", fileentry_data)
-            #print("offset", hex(firstentry+i*20), fileid, flags, nameoffset)
+            log.debug(f"offset {hex(firstentry+i*20)} {fileid} {flags} {nameoffset}")
 
             name = stringtable_get_name(f, stringtable_offset, nameoffset)
 
-            #print("name", name, fileid)
+            log.debug(f"name {name} {fileid}")
 
             if name == "." or name == ".." or name == "":
                 continue
-            #print(name, nameoffset)
+            log.debug(f"{name} {nameoffset}")
 
             if (flags & DIRECTORY) != 0 and not (flags & FILE): #fileid == 0xFFFF: # entry is a sub directory
                 #fileentrydata = f.read(12)
@@ -290,7 +290,7 @@ class Directory(object):
                 nodeindex = filedataoffset
 
                 name = stringtable_get_name(f, stringtable_offset, nameoffset)
-                #print(name, hashcode, hash_name(name))
+                log.debug(f"{name} {hashcode} {hash_name(name)}")
 
 
                 newparents = [currentnodeindex]
@@ -326,12 +326,12 @@ class Directory(object):
         else:
             dirpath = _path+"/"+self.name
 
-        #print("Yielding", dirpath)
+        log.debug(f"Yielding {dirpath}")
 
         yield (dirpath, self.subdirs.keys(), self.files.keys())
 
         for dirname, dir in self.subdirs.items():
-            #print("yielding subdir", dirname)
+            log.debug(f"yielding subdir {dirname}")
             yield from dir.walk(dirpath)
 
     def __getitem__(self, path):
@@ -432,11 +432,12 @@ class File(BytesIO):
     @classmethod
     def from_fileentry(cls, f, stringtable_offset, globaldataoffset, fileid, hashcode, flags, nameoffset, filedataoffset, datasize):
         filename = stringtable_get_name(f, stringtable_offset, nameoffset)
-        """print("-----")
-        print("File", len(filename))
-        print("size", datasize)
-        print(hex(stringtable_offset), hex(nameoffset))
-        print(hex(datasize))"""
+        log.debug(f"-----")
+        log.debug(f'"File": {len(filename)}')
+        log.debug(f'"size": {datasize}')
+        log.debug(f'{hex(stringtable_offset)} {hex(nameoffset)}')
+        log.debug(f'{hex(datasize)}')
+
         file = cls(filename, fileid, hashcode, flags)
 
         f.seek(globaldataoffset+filedataoffset)
@@ -506,11 +507,11 @@ class Archive(object):
         f.read(8) # Unknown
         nodes = []
 
-        #print("Archive has", node_count, " total directories")
+        log.debug(f"Archive has {node_count} total directories")
 
                 
         
-        #print("data offset", hex(data_offset))
+        log.debug(f"data offset {hex(data_offset)}")
         for i in range(node_count):
             nodetype = f.read(4)
             nodedata = f.read(4+2+2+4)
@@ -675,7 +676,7 @@ class Archive(object):
             return maxindex + 1
         
         for dir in dirlist:
-            #print("Hello", dir.absolute_path())
+            log.debug(f"Hello {dir.absolute_path()}")
             abspath = dir.absolute_path()   
             files = []
             
@@ -691,14 +692,14 @@ class Archive(object):
                     if filepath in filelisting:
                         fileid, filemeta = filelisting[filepath]
                         write_uint16(f, fileid)
-                        #print("found filemeta")
+                        log.debug(f"found filemeta")
                     else:
                         write_uint16(f, fileid)
                 else:
                     write_uint16(f, fileid)
                 filename = file.name 
                 write_uint16(f, hash_name(filename))
-                #print("Writing filemeta", str(filemeta))
+                log.debug(f"Writing filemeta {str(filemeta)}")
                 write_uint8(f, filemeta.to_flags())
                 write_uint8(f, 0) # padding 
                 #f.write(b"\x11\x00") # Flag for file+padding
@@ -708,9 +709,9 @@ class Archive(object):
                 write_uint32(f, filedata_offset) # Write file data offset
                 
                 if filemeta.is_yaz0 and filemeta.is_compressed:
-                    #print("so far so gud")
+                    log.debug("so far so gud")
                     if compression_settings.wszst:
-                        #print("doing wszst thing")
+                        log.debug("doing wszst thing")
                         compressed_data = compression_setting.run_wszst(file)
                         data.write(compressed_data)
                     else:
@@ -813,7 +814,7 @@ if __name__ == "__main__":
         dir2arc = False
 
     compression_setting = CompressionSetting(args.yaz0fast, args.wszst, args.wszst_comprlevel)
-    #print("Use wszst?", args.wszst)
+    log.debug(f"Use wszst? {args.wszst}")
     
     if args.output is None:
         path, name = os.path.split(inputpath)
@@ -847,7 +848,7 @@ if __name__ == "__main__":
         if inputdir is None:
             raise RuntimeError("Directory {0} contains no folders! Exactly one folder should exist.".format(inputpath))
         
-        #print("Packing directory to archive")
+        log.debug("Packing directory to archive")
         archive = Archive.from_dir(os.path.join(inputpath, inputdir))
         filelisting = {}
         maxindex = 0
@@ -863,16 +864,16 @@ if __name__ == "__main__":
                     else:
                         path, fileid, metadata = result 
                         filelisting_meta = FileListing.from_string(metadata)
-                        #print(metadata, filelisting_meta)
+                        log.debug(f"{metadata} {filelisting_meta}")
                     
                     filelisting[path] = (int(fileid), filelisting_meta)
                     if int(fileid) > maxindex:
                         maxindex = int(fileid)
         except:
-            #print("no filelisting")
+            log.debug("no filelisting")
             pass
         
-        #print("Directory loaded into memory, writing archive now")
+        log.debug("Directory loaded into memory, writing archive now")
         
         
         
@@ -881,9 +882,9 @@ if __name__ == "__main__":
                 archive.write_arc_compressed(f, compression_setting, filelisting, maxindex)
             else:
                 archive.write_arc(f, compression_setting, filelisting, maxindex)
-        #print("Done")
+        log.debug("Done")
     else:
-        #print("Extracting archive to directory")
+        log.debug("Extracting archive to directory")
         with open(inputpath, "rb") as f:
             archive = Archive.from_file(f)
         archive.extract_to(outputpath)
@@ -904,7 +905,7 @@ if __name__ == "__main__":
                     f.write(" ")
                     f.write(str(file._fileid))
                     meta = file.filetype.to_string()
-                    #print(hex(file._flags), file.filetype.to_string())
+                    log.debug(f"{hex(file._flags)} {file.filetype.to_string()}")
                     if meta:
                         f.write(" ")
                         f.write(meta)

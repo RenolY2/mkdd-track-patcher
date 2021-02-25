@@ -9,6 +9,7 @@ from patcher import *
 logging.basicConfig(stream=sys.stdout, level=logging.INFO, format="> %(message)s")
 log = logging.getLogger(__name__)
 
+# Windows for choosing a file path
 class ChooseFilePath(tk.Frame):
     def __init__(self, master=None, description=None, file_chosen_callback=None, save=False, config=None):
         super().__init__(master)
@@ -58,6 +59,7 @@ class ChooseFilePath(tk.Frame):
                 self.config["default paths"]["iso"] = folder 
                 save_cfg(self.config)
 
+# Window for choosing multiple file paths
 class ChooseFilePathMultiple(tk.Frame):
     def __init__(self, master=None, description=None, save=False, config=None):
         super().__init__(master)
@@ -110,6 +112,7 @@ class ChooseFilePathMultiple(tk.Frame):
         else:
             return self.paths
         
+# Main application
 class Application(tk.Frame):
     def __init__(self, master=None):
         super().__init__(master)
@@ -162,11 +165,14 @@ class Application(tk.Frame):
                               command=self.master.destroy)
         self.quit.pack(side="left")"""
     
+    # Patch the ISO
+    # Should this be included in the gui or moved to patcher.py
     def patch(self):
         log.info(f"Input iso: {self.input_iso_path.path.get()}")
         log.info(f"Input track: {self.input_mod_path.path.get()}")
         log.info(f"Output iso: {self.output_iso_path.path.get()}")
         
+        # If ISO or mod zip aren't provided, raise error
         if not self.input_iso_path.path.get():
             messagebox.showerror("Error", "You need to choose a MKDD ISO or GCM.")
             return 
@@ -174,19 +180,26 @@ class Application(tk.Frame):
             messagebox.showerror("Error", "You need to choose a MKDD Track/Mod zip file.")
             return 
         
+        # Open iso and get first four bytes
+        # Expected: GM4E / GM4P / GM4J
         with open(self.input_iso_path.path.get(), "rb") as f:
             gameid = f.read(4)
         
+        # Display error if not a valid gameid
         if gameid not in GAMEID_TO_REGION:
             messagebox.showerror("Error", "Unknown Game ID: {}. Probably not a MKDD ISO.".format(gameid))
             return 
             
+        # Get gameid
         region = GAMEID_TO_REGION[gameid]
+        
+        # Create GCM object with the ISO
         log.info("Patching now")
         isopath = self.input_iso_path.path.get()
         iso = GCM(isopath)
         iso.read_entire_disc()
         
+        # Create ZipToIsoPatcher object
         patcher = ZipToIsoPatcher(None, iso)
         
         at_least_1_track = False 
@@ -195,7 +208,9 @@ class Application(tk.Frame):
         
         skipped = 0
         
+        # Go through each mod path
         for track in self.input_mod_path.get_paths():
+            # Get mod zip
             log.info(track)
             mod_name = os.path.basename(track)
             patcher.set_zip(track)
@@ -497,7 +512,7 @@ class About(tk.Frame):
         w.pack()
         
 if __name__ == "__main__":
-
+    
     root = tk.Tk()
     root.geometry("350x150")
     def show_about():

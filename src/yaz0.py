@@ -130,7 +130,7 @@ def decompress(f, out, suppress_error=False):
                         j = (j+1) % copy_length
                 
     if out.tell() < decompressed_size:
-        #print("this isn't right")
+        log.debug("this isn't right")
         raise RuntimeError("Didn't decompress correctly, notify the developer!")
     if out.tell() > decompressed_size:
         log.warning(f"Warning: output is longer than decompressed size for some reason: "
