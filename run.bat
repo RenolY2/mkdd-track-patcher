@@ -1,2 +1,2 @@
-python patcher.py
+python src/gui.py
 pause

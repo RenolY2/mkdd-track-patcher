@@ -1,182 +1,15 @@
+import sys
+import logging
 import tkinter as tk
-import zipfile
-import json 
-import configparser
-import os 
-import struct 
-from io import BytesIO
 from tkinter import filedialog
 from tkinter import messagebox
 
+from patcher import *
 
-from gcm import GCM
-from track_mapping import music_mapping, arc_mapping, file_mapping, bsft, battle_mapping
-from dolreader import *
-from rarc import Archive, write_pad32, write_uint32
-from readbsft import BSFT
-from zip_helper import ZipToIsoPatcher
-from configuration import read_config, make_default_config, save_cfg
-from conflict_checker import Conflicts 
+logging.basicConfig(stream=sys.stdout, level=logging.INFO, format="> %(message)s")
+log = logging.getLogger(__name__)
 
-GAMEID_TO_REGION = {
-    b"GM4E": "US",
-    b"GM4P": "PAL",
-    b"GM4J": "JP"
-}
-
-LANGUAGES = ["English", "Japanese", "German", "Italian", "French", "Spanish"]
-
-VERSION = "1.0"
-
-def copy_if_not_exist(iso, newfile, oldfile):
-    if not iso.file_exists("files/"+newfile):
-        iso.add_new_file("files/"+newfile, iso.read_file_data("files/"+oldfile))
-
-
-def patch_musicid(arc, new_music):
-    if new_music in music_mapping:
-        new_id = music_mapping[new_music]
-        
-        for filename in arc.root.files:
-            if filename.endswith("_course.bol"):
-                data = arc.root.files[filename]
-                data.seek(0x19)
-                id = data.read(1)[0]
-                if id in music_mapping.values():
-                    data.seek(0x19)
-                    data.write(struct.pack("B", new_id))
-                    data.seek(0x0)
-               
-
-
-def patch_baa(iso):
-    baa = iso.read_file_data("files/AudioRes/GCKart.baa")
-    baadata = baa.read()
-    
-    if b"COURSE_YCIRCUIT_0" in baadata:
-        return # Baa is already patched, nothing to do
-    
-    bsftoffset = baadata.find(b"bsft")
-    assert bsftoffset < 0x100
-    
-    baa.seek(len(baadata))
-    new_bsft = BSFT()
-    new_bsft.tracks = bsft
-    write_pad32(baa)
-    bsft_offset = baa.tell()
-    new_bsft.write_to_file(baa)
-    
-    write_pad32(baa)
-    baa.seek(bsftoffset)
-    magic = baa.read(4)
-    assert magic == b"bsft"
-    write_uint32(baa, bsft_offset)
-    iso.changed_files["files/AudioRes/GCKart.baa"] = baa
-    print("patched baa")
-    
-    copy_if_not_exist(iso, "AudioRes/Stream/COURSE_YCIRCUIT_0.x.32.c4.ast", "AudioRes/Stream/COURSE_CIRCUIT_0.x.32.c4.ast")
-    copy_if_not_exist(iso, "AudioRes/Stream/COURSE_MCIRCUIT_0.x.32.c4.ast", "AudioRes/Stream/COURSE_CIRCUIT_0.x.32.c4.ast")
-    
-
-    copy_if_not_exist(iso, "AudioRes/Stream/COURSE_CITY_0.x.32.c4.ast", "AudioRes/Stream/COURSE_HIWAY_0.x.32.c4.ast")
-    copy_if_not_exist(iso, "AudioRes/Stream/COURSE_COLOSSEUM_0.x.32.c4.ast", "AudioRes/Stream/COURSE_STADIUM_0.x.32.c4.ast")
-    copy_if_not_exist(iso, "AudioRes/Stream/COURSE_MOUNTAIN_0.x.32.c4.ast", "AudioRes/Stream/COURSE_JUNGLE_0.x.32.c4.ast")
-    
-    
-    copy_if_not_exist(iso, "AudioRes/Stream/FINALLAP_YCIRCUIT_0.x.32.c4.ast", "AudioRes/Stream/FINALLAP_CIRCUIT_0.x.32.c4.ast")
-    copy_if_not_exist(iso, "AudioRes/Stream/FINALLAP_MCIRCUIT_0.x.32.c4.ast", "AudioRes/Stream/FINALLAP_CIRCUIT_0.x.32.c4.ast")
-    
-
-    copy_if_not_exist(iso, "AudioRes/Stream/FINALLAP_CITY_0.x.32.c4.ast", "AudioRes/Stream/FINALLAP_HIWAY_0.x.32.c4.ast")
-    copy_if_not_exist(iso, "AudioRes/Stream/FINALLAP_COLOSSEUM_0.x.32.c4.ast", "AudioRes/Stream/FINALLAP_STADIUM_0.x.32.c4.ast")
-    copy_if_not_exist(iso, "AudioRes/Stream/FINALLAP_MOUNTAIN_0.x.32.c4.ast", "AudioRes/Stream/FINALLAP_JUNGLE_0.x.32.c4.ast")
-    
-    print("Copied ast files")
-    
-def patch_minimap_dol(dol, track, region, minimap_setting, intended_track=True):
-    with open("resources/minimap_locations.json", "r") as f:
-        addresses_json = json.load(f)
-        addresses = addresses_json[region]
-        corner1x, corner1z, corner2x, corner2z, orientation = addresses[track]
-
-    orientation_val = minimap_setting["Orientation"]
-    if orientation_val not in (0, 1, 2, 3):
-        raise RuntimeError(
-            "Invalid Orientation value: Must be in the range 0-3 but is {0}".format(orientation_val))
-
-    dol.seek(int(orientation, 16))
-    orientation_val = read_load_immediate_r0(dol)
-    if orientation_val not in (0, 1, 2, 3):
-        raise RuntimeError(
-            "Wrong Address, orientation value in DOL isn't in 0-3 range: {0}. Maybe you are using"
-            " a dol from a different game version?".format(orientation_val))
-
-    dol.seek(int(orientation, 16))
-    write_load_immediate_r0(dol, minimap_setting["Orientation"])
-    dol.seek(int(corner1x, 16))
-    write_float(dol, minimap_setting["Top Left Corner X"])
-    dol.seek(int(corner1z, 16))
-    write_float(dol, minimap_setting["Top Left Corner Z"])
-    dol.seek(int(corner2x, 16))
-    write_float(dol, minimap_setting["Bottom Right Corner X"])
-    dol.seek(int(corner2z, 16))
-    write_float(dol, minimap_setting["Bottom Right Corner Z"])
-    
-    if not intended_track:
-        minimap_transforms = addresses_json[region+"_MinimapLocation"]
-        if track in minimap_transforms:
-            if len(minimap_transforms[track]) == 9:
-                p1_offx, p1_offy, p1_scale = minimap_transforms[track][0:3]
-                p2_offx, p2_offy, p2_scale = minimap_transforms[track][3:6]
-                p3_offx, p3_offy, p3_scale = minimap_transforms[track][6:9]
-            else:
-                p1_offx, p1_offx2, p1_offy, p1_scale = minimap_transforms[track][0:4]
-                p2_offx, p2_offx2, p2_offy, p2_scale = minimap_transforms[track][4:8]
-                p3_offx, p3_offx2, p3_offy, p3_scale = minimap_transforms[track][8:12]
-                
-                write_uint32_offset(dol, 0xC02298E4, int(p1_offx2, 16))
-                write_uint32_offset(dol, 0xC02298EC, int(p2_offx2, 16))
-                write_uint32_offset(dol, 0xC0229838, int(p3_offx2, 16))
-            
-            write_uint32_offset(dol, 0xC02298E4, int(p1_offx, 16))
-            write_uint32_offset(dol, 0xC02298EC, int(p2_offx, 16))
-            write_uint32_offset(dol, 0xC0229838, int(p3_offx, 16))
-            
-            write_uint32_offset(dol, 0xC02298E8, int(p1_offy, 16))
-            write_uint32_offset(dol, 0xC0229838, int(p2_offy, 16))
-            write_uint32_offset(dol, 0xC0229838, int(p3_offy, 16))
-            
-            write_uint32_offset(dol, 0xC02298A8, int(p1_scale, 16))
-            write_uint32_offset(dol, 0xC02298B4, int(p2_scale, 16))
-            write_uint32_offset(dol, 0xC022983C, int(p3_scale, 16))
-            
-
-def rename_archive(arc, newname, mp):
-    if mp:
-        arc.root.name = newname+"l"
-    else:
-        arc.root.name = newname 
-    
-    rename = []
-    
-    for filename, file in arc.root.files.items():
-        if "_" in filename:
-            rename.append((filename, file))
-    
-    for filename, file in rename:
-        del arc.root.files[filename]
-        name, rest = filename.split("_", 1)
-        
-        if newname == "luigi2":
-            newfilename = "luigi_"+rest 
-        else:
-            newfilename = newname + "_" + rest 
-            
-        file.name = newfilename
-        arc.root.files[newfilename] = file 
-        
-        
-
+# Windows for choosing a file path
 class ChooseFilePath(tk.Frame):
     def __init__(self, master=None, description=None, file_chosen_callback=None, save=False, config=None):
         super().__init__(master)
@@ -212,7 +45,7 @@ class ChooseFilePath(tk.Frame):
                 title="Choose a MKDD GCM/ISO",
                 filetypes=(("GameCube Disc Image", "*.iso *.gcm"), ))
         
-        #print("path:" ,path)
+        #log.info("path:" ,path)
         if path:
             self.path.delete(0, tk.END)
             self.path.insert(0, path)
@@ -226,6 +59,7 @@ class ChooseFilePath(tk.Frame):
                 self.config["default paths"]["iso"] = folder 
                 save_cfg(self.config)
 
+# Window for choosing multiple file paths
 class ChooseFilePathMultiple(tk.Frame):
     def __init__(self, master=None, description=None, save=False, config=None):
         super().__init__(master)
@@ -258,7 +92,7 @@ class ChooseFilePathMultiple(tk.Frame):
         title="Choose Race Track zip file(s)", 
         filetypes=(("MKDD Track Zip", "*.zip"), ))
         
-        #print("path:" ,path)
+        #log.info("path:" ,path)
         if len(paths) > 0:
             self.path.delete(0, tk.END)
             self.path.insert(0, paths[0])
@@ -278,7 +112,7 @@ class ChooseFilePathMultiple(tk.Frame):
         else:
             return self.paths
         
-
+# Main application
 class Application(tk.Frame):
     def __init__(self, master=None):
         super().__init__(master)
@@ -289,9 +123,9 @@ class Application(tk.Frame):
         
         try:
             self.configuration = read_config()
-            print("Config file loaded")
+            log.info("Config file loaded")
         except FileNotFoundError as e:
-            print("No config file found, creating default config...")
+            log.warning("No config file found, creating default config...")
             self.configuration = make_default_config()
         
         self.create_widgets()
@@ -331,11 +165,14 @@ class Application(tk.Frame):
                               command=self.master.destroy)
         self.quit.pack(side="left")"""
     
+    # Patch the ISO
+    # Should this be included in the gui or moved to patcher.py
     def patch(self):
-        print("Input iso:", self.input_iso_path.path.get())
-        print("Input track:", self.input_mod_path.path.get())
-        print("Output iso:", self.output_iso_path.path.get())
+        log.info(f"Input iso: {self.input_iso_path.path.get()}")
+        log.info(f"Input track: {self.input_mod_path.path.get()}")
+        log.info(f"Output iso: {self.output_iso_path.path.get()}")
         
+        # If ISO or mod zip aren't provided, raise error
         if not self.input_iso_path.path.get():
             messagebox.showerror("Error", "You need to choose a MKDD ISO or GCM.")
             return 
@@ -343,19 +180,26 @@ class Application(tk.Frame):
             messagebox.showerror("Error", "You need to choose a MKDD Track/Mod zip file.")
             return 
         
+        # Open iso and get first four bytes
+        # Expected: GM4E / GM4P / GM4J
         with open(self.input_iso_path.path.get(), "rb") as f:
             gameid = f.read(4)
         
+        # Display error if not a valid gameid
         if gameid not in GAMEID_TO_REGION:
             messagebox.showerror("Error", "Unknown Game ID: {}. Probably not a MKDD ISO.".format(gameid))
             return 
             
+        # Get gameid
         region = GAMEID_TO_REGION[gameid]
-        print("Patching now")
+        
+        # Create GCM object with the ISO
+        log.info("Patching now")
         isopath = self.input_iso_path.path.get()
         iso = GCM(isopath)
         iso.read_entire_disc()
         
+        # Create ZipToIsoPatcher object
         patcher = ZipToIsoPatcher(None, iso)
         
         at_least_1_track = False 
@@ -364,22 +208,24 @@ class Application(tk.Frame):
         
         skipped = 0
         
+        # Go through each mod path
         for track in self.input_mod_path.get_paths():
-            print(track)
+            # Get mod zip
+            log.info(track)
             mod_name = os.path.basename(track)
             patcher.set_zip(track)
             
             
             config = configparser.ConfigParser()
-            #print(trackzip.namelist())
+            #log.info(trackzip.namelist())
             if patcher.src_file_exists("modinfo.ini"):
                 
                 modinfo = patcher.zip_open("modinfo.ini")
                 config.read_string(str(modinfo.read(), encoding="utf-8"))
-                print("Mod", config["Config"]["modname"], "by", config["Config"]["author"])
-                print("Description:", config["Config"]["description"])
+                log.info(f"Mod {config['Config']['modname']} by {config['Config']['author']}")
+                log.info(f"Description: {config['Config']['description']}")
                 # patch files 
-                #print(trackzip.namelist())
+                #log.info(trackzip.namelist())
                 
                 
                 arcs, files = patcher.get_file_changes("files/")
@@ -395,11 +241,11 @@ class Application(tk.Frame):
                     if not iso.file_exists(srcarcpath):
                         continue 
                         
-                    #print("Loaded arc:", arc)
+                    #log.info("Loaded arc:", arc)
                     destination_arc = Archive.from_file(patcher.get_iso_file(srcarcpath))
 
                     for file in arcfiles:
-                        #print("files/"+file)
+                        #log.info("files/"+file)
                         patcher.copy_file_into_arc("files/"+arc+"/"+file,
                                     destination_arc, file, missing_ok=False)
                         conflicts.add_conflict(arc+"/"+file, mod_name)
@@ -412,7 +258,7 @@ class Application(tk.Frame):
                 
                 if "race2d.arc" in arcs:
                     arcfiles = arcs["race2d.arc"]
-                    #print("Loaded race2d arc")
+                    #log.info("Loaded race2d arc")
                     mram_arc = Archive.from_file(patcher.get_iso_file("files/MRAM.arc"))
                     
                     race2d_arc = Archive.from_file(mram_arc["mram/race2d.arc"])
@@ -442,10 +288,9 @@ class Application(tk.Frame):
                 replace = config["Config"]["replaces"].strip()
                 replace_music = config["Config"]["replaces_music"].strip()
                 
-                print("Imported Track Info:")
-                print("Track '{0}' created by {1} replaces {2}".format(
-                    config["Config"]["trackname"], config["Config"]["author"], config["Config"]["replaces"])
-                    )
+                log.info("Imported Track Info:")
+                log.info(f"Track '{config['Config']['trackname']}' created by "
+                         f"{config['Config']['author']} replaces {config['Config']['replaces']}")
                 
                 minimap_settings = json.load(patcher.zip_open("minimap.json"))
                 
@@ -492,7 +337,7 @@ class Application(tk.Frame):
                 patcher.change_file("files/Course/{}.arc".format(bigname), newarc)
                 patcher.change_file("files/Course/{}L.arc".format(bigname), newarc_mp)
              
-                print("replacing", "files/Course/{}.arc".format(bigname))
+                log.info(f"replacing files/Course/{bigname}.arc")
                 
                 
                 if replace == "Luigi Circuit":
@@ -540,7 +385,7 @@ class Application(tk.Frame):
                     if not iso.file_exists(coursename_arc_path):
                         continue 
                     
-                    #print("Found language", language)
+                    #log.info("Found language", language)
                     patcher.copy_file("course_images/{}/track_big_logo.bti".format(srclanguage),
                                         "files/CourseName/{}/{}_name.bti".format(dstlanguage, bigname))
                                         
@@ -611,15 +456,15 @@ class Application(tk.Frame):
                             missing_ok=True)
                     conflicts.add_conflict("music_"+replace_music, mod_name)
             else:
-                print("not a race track or mod, skipping...")
+                log.warning("not a race track or mod, skipping...")
                 skipped += 1
                 
         if at_least_1_track:
             patch_baa(iso)
             
-        print("patches applied")
+        log.info("patches applied")
         
-        #print("all changed files:", iso.changed_files.keys())
+        #log.info("all changed files:", iso.changed_files.keys())
         if conflicts.conflict_appeared:
             resulting_conflicts = conflicts.get_conflicts()
             warn_text = ("File change conflicts between mods were encountered.\n"
@@ -639,7 +484,7 @@ class Application(tk.Frame):
             if not do_continue:
                 messagebox.showinfo("Info", "ISO patching cancelled.")
                 return 
-        print("writing iso to", self.output_iso_path.path.get())
+        log.info(f"writing iso to {self.output_iso_path.path.get()}")
         try:
             iso.export_disc_to_iso_with_changed_files(self.output_iso_path.path.get())
         except Exception as error:
@@ -652,10 +497,10 @@ class Application(tk.Frame):
                 messagebox.showinfo("Info", ("New ISO successfully created!\n"
                     "{0} zip file(s) skipped due to not being race tracks or mods.".format(skipped)))
             
-            print("finished writing iso, you are good to go!") 
+            log.info("finished writing iso, you are good to go!") 
         
     def say_hi(self):
-        print("hi there, everyone!")
+        log.info("hi there, everyone!")
 
 class About(tk.Frame):
     def __init__(self, master=None):
@@ -666,11 +511,8 @@ class About(tk.Frame):
         w.insert(1.0, "Hello World")
         w.pack()
         
-
-
-
 if __name__ == "__main__":
-
+    
     root = tk.Tk()
     root.geometry("350x150")
     def show_about():
@@ -685,15 +527,12 @@ if __name__ == "__main__":
         text.insert(3.0, "Post suggestions or bug reports at: https://github.com/RenolY2/mkdd-track-patcher/issues")
         text.pack()
         text.configure(state="disabled")
-        
-    
-    
-    
-    
-    
     
     root.title("MKDD Patcher")
-    root.iconbitmap('resources/icon.ico')
+    try:
+        root.iconbitmap(str(pathlib.Path(__file__).parent.absolute()) + '/resources/icon.ico')
+    except:
+        pass
     menubar = tk.Menu(root)
     menubar.add_command(label="About", command=show_about)
     root.config(menu=menubar)

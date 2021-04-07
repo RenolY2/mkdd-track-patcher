@@ -1,6 +1,8 @@
 import struct 
+import logging
 from io import BytesIO, RawIOBase
 
+log = logging.getLogger(__name__)
 
 def read_load_immediate_r0(f):
     if f.read(2) != b"\x38\x00":
@@ -70,12 +72,12 @@ class DolFile(object):
             if i <= 6:
                 if offset != 0:
                     self._text.append((offset, address, size))
-                    # print("text{0}".format(i), hex(offset), hex(address), hex(size))
+                    log.debug(f"text{i} {hex(offset)} {hex(address)} {hex(size)}")
             else:
                 datanum = i - 7
                 if offset != 0:
                     self._data.append((offset, address, size))
-                    # print("data{0}".format(datanum), hex(offset), hex(address), hex(size))
+                    log.debug(f"text{i} {hex(offset)} {hex(address)} {hex(size)}")
         
         f.seek(0xD8)
         self.bssaddr = read_uint32(f)
@@ -214,18 +216,18 @@ class DolFile(object):
     
     
     def print_info(self):
-        print("Dol Info:")
+        log.info("Dol Info:")
         i = 0
         for offset, addr, size in self._text:
-            print("text{0}: fileoffset {1:x}, addr {2:x}, size {3:x}".format(i, offset, addr, size))
+            log.info(f"text{0}: fileoffset {1:x}, addr {2:x}, size {3:x}".format(i, offset, addr, size))
             i += 1
         i = 0
         
         for offset, addr, size in self._data:
-            print("data{0}: fileoffset {1:x}, addr {2:x}, size {3:x}".format(i, offset, addr, size))
+            log.info("data{0}: fileoffset {1:x}, addr {2:x}, size {3:x}".format(i, offset, addr, size))
             i += 1
             
-        print("bss addr: {0:x}, bss size: {1:x}, bss end: {2:x}".format(self.bssaddr, self.bsssize,
+        log.info("bss addr: {0:x}, bss size: {1:x}, bss end: {2:x}".format(self.bssaddr, self.bsssize,
                                                                             self.bssaddr+ self.bsssize))
         
 if __name__ == "__main__":
@@ -248,9 +250,9 @@ if __name__ == "__main__":
     out = {}
     #with open("mkddobjects.txt", "w") as f: 
     for i in range(160):#0x84+100):
-        print(i)
+        log.info(i)
         objectid = read_ushort(dol)
-        print(hex(objectid))
+        log.info(hex(objectid))
         assert dol.read(2) == b"\x00\x00"
         pointer = read_uint32(dol)
         assert dol.read(4) == b"\x00\x00\x00\x00"

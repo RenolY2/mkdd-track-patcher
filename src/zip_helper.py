@@ -1,7 +1,9 @@
-import zipfile
 import os 
+import zipfile
+import logging
 from pathlib import Path
 
+log = logging.getLogger(__name__)
 class ZipLikeFolder(object):
     def __init__(self, filepath):
         self.filepath = filepath 
@@ -49,7 +51,7 @@ class ZipToIsoPatcher(object):
         self.zip = zipfile.ZipFile(path)
     
     def zip_open(self, filepath):
-        #print("open:", filepath)
+        log.debug(f"open: {filepath}")
         fp = self.zip.open(self.root+filepath)
         return fp
     
