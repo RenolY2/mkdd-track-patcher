@@ -30,7 +30,7 @@ SOFTWARE.
 import os
 from io import BytesIO
 
-from fs_helpers import *
+from .fs_helpers import *
 
 MAX_DATA_SIZE_TO_READ_AT_ONCE = 64*1024*1024 # 64MB
 

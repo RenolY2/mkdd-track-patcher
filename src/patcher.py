@@ -8,14 +8,13 @@ import configparser
 from io import BytesIO
 
 
-from gcm import GCM
-from dolreader import *
-from readbsft import BSFT
-from zip_helper import ZipToIsoPatcher
-from conflict_checker import Conflicts 
-from rarc import Archive, write_pad32, write_uint32
-from configuration import read_config, make_default_config, save_cfg
-from track_mapping import music_mapping, arc_mapping, file_mapping, bsft, battle_mapping
+from .gcm import GCM
+from .dolreader import *
+from .readbsft import BSFT
+from .zip_helper import ZipToIsoPatcher
+from .conflict_checker import Conflicts
+from .rarc import Archive, write_pad32, write_uint32
+from .track_mapping import music_mapping, arc_mapping, file_mapping, bsft, battle_mapping
 
 log = logging.getLogger(__name__)
 

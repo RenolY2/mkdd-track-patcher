@@ -7,7 +7,7 @@ import subprocess
 from io import BytesIO
 from itertools import chain
 from struct import pack, unpack
-from yaz0 import decompress, compress_fast, read_uint32, read_uint16
+from .yaz0 import decompress, compress_fast, read_uint32, read_uint16
 
 log = logging.getLogger(__name__)
 

@@ -21,7 +21,12 @@ class ZipToIsoPatcher(object):
     def __init__(self, zip, iso):
         self.zip = zip 
         self.iso = iso 
-    
+
+    def is_code_patch(self):
+        return (not self.src_file_exists("modinfo.ini")
+                and not self.src_file_exists("trackinfo.ini")
+                and self.src_file_exists("codeinfo.ini"))
+
     def set_zip(self, path):
         self.zip = zipfile.ZipFile(path)
         # Find the root folder:

@@ -1,13 +1,17 @@
 import sys
 import logging
 import tkinter as tk
+import os
 from tkinter import filedialog
 from tkinter import messagebox
 
-from patcher import *
+from src.patcher import *
+from src.configuration import read_config, make_default_config, save_cfg
+from src.pybinpatch import DiffPatch, WrongSourceFile
 
 logging.basicConfig(stream=sys.stdout, level=logging.INFO, format="> %(message)s")
 log = logging.getLogger(__name__)
+
 
 # Windows for choosing a file path
 class ChooseFilePath(tk.Frame):
@@ -37,11 +41,13 @@ class ChooseFilePath(tk.Frame):
             initialdir = None 
             
         if self.save:
-            path = filedialog.asksaveasfilename(initialdir=initialdir,
+            path = filedialog.asksaveasfilename(
+                initialdir=initialdir,
                 title="Choose location of new MKDD GCM/ISO",
                 filetypes=(("GameCube Disc Image", "*.iso *.gcm"), ))
         else:
-            path = filedialog.askopenfilename(initialdir=initialdir,
+            path = filedialog.askopenfilename(
+                initialdir=initialdir,
                 title="Choose a MKDD GCM/ISO",
                 filetypes=(("GameCube Disc Image", "*.iso *.gcm"), ))
         
@@ -50,14 +56,14 @@ class ChooseFilePath(tk.Frame):
             self.path.delete(0, tk.END)
             self.path.insert(0, path)
         
-            if self.callback != None:
+            if self.callback is not None:
                 self.callback(self)
-        
 
             folder = os.path.dirname(path)
             if self.config is not None:
                 self.config["default paths"]["iso"] = folder 
                 save_cfg(self.config)
+
 
 # Window for choosing multiple file paths
 class ChooseFilePathMultiple(tk.Frame):
@@ -80,17 +86,17 @@ class ChooseFilePathMultiple(tk.Frame):
         
         self.paths = []
         self.config = config 
-        
-        
+
     def open_file(self):
         if self.config is not None:
             initialdir = self.config["default paths"]["mods"]
         else:
             initialdir = None 
             
-        paths = filedialog.askopenfilenames(initialdir=initialdir, 
-        title="Choose Race Track zip file(s)", 
-        filetypes=(("MKDD Track Zip", "*.zip"), ))
+        paths = filedialog.askopenfilenames(
+            initialdir=initialdir,
+            title="Choose Race Track zip file(s)",
+            filetypes=(("MKDD Track Zip", "*.zip"), ))
         
         #log.info("path:" ,path)
         if len(paths) > 0:
@@ -111,14 +117,14 @@ class ChooseFilePathMultiple(tk.Frame):
             return [self.path.get()]
         else:
             return self.paths
-        
+
+
 # Main application
 class Application(tk.Frame):
     def __init__(self, master=None):
         super().__init__(master)
         self.master = master
-        
-        
+
         self.pack()
         
         try:
@@ -129,9 +135,7 @@ class Application(tk.Frame):
             self.configuration = make_default_config()
         
         self.create_widgets()
-        
 
-    
     def make_open_button(self, master):
         button = tk.Button(master)
         button["text"] = "Open"
@@ -207,13 +211,59 @@ class Application(tk.Frame):
         conflicts = Conflicts()
         
         skipped = 0
-        
+
+        code_patches = []
+
+        for mod in self.input_mod_path.get_paths():
+            log.info(mod)
+            patcher.set_zip(mod)
+
+            if patcher.is_code_patch():
+                code_patches.append(mod)
+
+        if len(code_patches) > 1:
+            messagebox.showerror("Error",
+                                 "More than one code patch selected:\n{}\nPlease only select one code patch.".format(
+                                    "\n".join(os.path.basename(x) for x in code_patches)))
+
+            return
+
+        elif len(code_patches) == 1:
+            patch_name = "codepatch_"+region+".bin"
+            if patcher.src_file_exists(patch_name):
+                patchfile = patcher.zip_open(patch_name)
+                patch = DiffPatch.from_patch(patchfile)
+                dol = patcher.get_iso_file("sys/main.dol")
+
+                src = dol.read()
+                dol.seek(0)
+                try:
+                    patch.apply(src, dol)
+                    dol.seek(0)
+                except WrongSourceFile:
+                    do_continue = messagebox.askyesno(
+                        "Warning",
+                        "The game executable has already been patched or is different than expected. "
+                        "Patching it again may have unintended side effects (e.g. crashing) "
+                        "so it is recommended to cancel patching and try again "
+                        "on an unpatched, vanilla game ISO. \n\n"
+                        "Do you want to continue?")
+
+                    if not do_continue:
+                        return
+                    else:
+                        patch.apply(src, dol, ignore_hash_mismatch=True)
+                        dol.seek(0)
+
         # Go through each mod path
-        for track in self.input_mod_path.get_paths():
+        for mod in self.input_mod_path.get_paths():
             # Get mod zip
-            log.info(track)
-            mod_name = os.path.basename(track)
-            patcher.set_zip(track)
+            log.info(mod)
+            mod_name = os.path.basename(mod)
+            patcher.set_zip(mod)
+
+            if patcher.is_code_patch():
+                continue
             
             
             config = configparser.ConfigParser()
@@ -477,8 +527,8 @@ class Application(tk.Frame):
             
             warn_text += ("\nIf you continue patching, the new ISO might be inconsistent. \n"
                 "Do you want to continue patching? \n")
-            
-            do_continue = messagebox.askyesno("Warning", 
+
+            do_continue = messagebox.askyesno("Warning",
                 warn_text)
             
             if not do_continue:
@@ -510,9 +560,9 @@ class About(tk.Frame):
         self.text = tk.Text(master, height=4)
         w.insert(1.0, "Hello World")
         w.pack()
-        
+
+
 if __name__ == "__main__":
-    
     root = tk.Tk()
     root.geometry("350x150")
     def show_about():
