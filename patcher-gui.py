@@ -6,7 +6,7 @@ from tkinter import filedialog
 from tkinter import messagebox
 
 from src.patcher import *
-from src.configuration import read_config, make_default_config, save_cfg
+from src.configuration import read_config, make_default_config, save_cfg, update_config
 from src.pybinpatch import DiffPatch, WrongSourceFile
 
 logging.basicConfig(stream=sys.stdout, level=logging.INFO, format="> %(message)s")
@@ -67,7 +67,7 @@ class ChooseFilePath(tk.Frame):
 
 # Window for choosing multiple file paths
 class ChooseFilePathMultiple(tk.Frame):
-    def __init__(self, master=None, description=None, save=False, config=None):
+    def __init__(self, master=None, description=None, save=False, config=None, folder=False):
         super().__init__(master)
         self.master = master
         self.pack(anchor="w") 
@@ -77,7 +77,8 @@ class ChooseFilePathMultiple(tk.Frame):
         self.path = tk.Entry(self)
         self.path.pack(side="left")
         self.button = tk.Button(self, text="Open", command=self.open_file)
-        
+        self.folder = folder
+
         if save:
             self.button["text"] = "Save"
             
@@ -91,12 +92,23 @@ class ChooseFilePathMultiple(tk.Frame):
         if self.config is not None:
             initialdir = self.config["default paths"]["mods"]
         else:
-            initialdir = None 
-            
-        paths = filedialog.askopenfilenames(
-            initialdir=initialdir,
-            title="Choose Race Track zip file(s)",
-            filetypes=(("MKDD Track Zip", "*.zip"), ))
+            initialdir = None
+
+        if self.folder:
+            paths = []
+            folderpath = filedialog.askdirectory(
+                initialdir=initialdir,
+                title="Choose Race Track/Mod folder")
+            for path in os.listdir(folderpath):
+                joinedpath = os.path.join(folderpath, path)
+                if os.path.isdir(joinedpath):
+                    paths.append(joinedpath)
+
+        else:
+            paths = filedialog.askopenfilenames(
+                initialdir=initialdir,
+                title="Choose Race Track zip file(s)",
+                filetypes=(("MKDD Track Zip", "*.zip"), ))
         
         #log.info("path:" ,path)
         if len(paths) > 0:
@@ -130,6 +142,7 @@ class Application(tk.Frame):
         try:
             self.configuration = read_config()
             log.info("Config file loaded")
+            update_config(self.configuration)
         except FileNotFoundError as e:
             log.warning("No config file found, creating default config...")
             self.configuration = make_default_config()
@@ -149,9 +162,15 @@ class Application(tk.Frame):
     def create_widgets(self):
         self.input_iso_path = ChooseFilePath(self, description="MKDD ISO", file_chosen_callback=self.update_path,
             config=self.configuration)
-        
-        self.input_mod_path = ChooseFilePathMultiple(self, description="Race track/Mod zip",
-            config=self.configuration)
+
+        folder_mode = self.configuration.getboolean("options", "folder_mode")
+
+        if folder_mode:
+            self.input_mod_path = ChooseFilePathMultiple(self, description="Race track/Mod folder",
+                                                         config=self.configuration, folder=True)
+        else:
+            self.input_mod_path = ChooseFilePathMultiple(self, description="Race track/Mod zip",
+                                                         config=self.configuration)
         
         self.output_iso_path = ChooseFilePath(self, description="New ISO", save=True,
             config=self.configuration)

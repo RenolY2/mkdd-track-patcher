@@ -28,6 +28,7 @@ LANGUAGES = ["English", "Japanese", "German", "Italian", "French", "Spanish"]
 
 VERSION = "1.0"
 
+
 def copy_if_not_exist(iso, newfile, oldfile):
     """Copy a file if and only if it doesn't exist
 

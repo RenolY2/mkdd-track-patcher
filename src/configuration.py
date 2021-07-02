@@ -6,6 +6,7 @@ log = logging.getLogger(__name__)
 
 CONFIG_NAME = str(pathlib.Path(__file__).parent.absolute()) + "/config.ini"
 
+
 def read_config():
     log.info("Reading configuration...")
     cfg = configparser.ConfigParser()
@@ -22,12 +23,23 @@ def make_default_config():
         "iso": "",
         "mods": ""
     }
-
+    cfg["options"] = {
+        "folder_mode": False
+    }
 
     with open(CONFIG_NAME, "w") as f:
         cfg.write(f)
 
     return cfg
+
+
+def update_config(cfg):
+    if "options" not in cfg:
+        cfg["options"] = {
+            "folder_mode": False
+        }
+
+        save_cfg(cfg)
 
 
 def save_cfg(cfg):

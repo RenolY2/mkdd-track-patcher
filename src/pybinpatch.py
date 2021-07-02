@@ -63,7 +63,9 @@ class DiffPatch(object):
     
     @classmethod
     def from_patch(cls, f):
-        if f.read(16) != b"Simple Patch Fmt":
+        start = f.read(16)
+        if start != b"Simple Patch Fmt":
+            print(start)
             raise UnsupportedFormat("Not A Supported Patch Format!")
         hash_src = f.read(20)
         hash_target = f.read(20)
