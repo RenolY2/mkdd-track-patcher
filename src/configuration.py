@@ -3,8 +3,7 @@ import pathlib
 import configparser
 
 log = logging.getLogger(__name__)
-
-CONFIG_NAME = str(pathlib.Path(__file__).parent.absolute()) + "/config.ini"
+CONFIG_NAME = str(pathlib.Path(__file__).parent.parent.absolute()) + "/config.ini"
 
 
 def read_config():
