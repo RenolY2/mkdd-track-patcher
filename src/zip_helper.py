@@ -19,8 +19,11 @@ class ZipLikeFolder(object):
     def open(self, path):
         handle = BytesIO()
 
-        with open(os.path.join(self.filepath, path), "rb") as f:
-            handle.write(f.read())
+        try:
+            with open(os.path.join(self.filepath, path), "rb") as f:
+                handle.write(f.read())
+        except:
+            raise KeyError("{0} not found.".format(path))
         handle.seek(0)
         return handle
 

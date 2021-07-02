@@ -238,6 +238,7 @@ class Application(tk.Frame):
             patcher.set_zip(mod)
 
             if patcher.is_code_patch():
+                log.info("Found code patch")
                 code_patches.append(mod)
 
         if len(code_patches) > 1:
@@ -248,7 +249,9 @@ class Application(tk.Frame):
             return
 
         elif len(code_patches) == 1:
+            patcher.set_zip(code_patches[0])
             patch_name = "codepatch_"+region+".bin"
+            log.info("{0} exists? {1}".format(patch_name, patcher.src_file_exists(patch_name)))
             if patcher.src_file_exists(patch_name):
                 patchfile = patcher.zip_open(patch_name)
                 patch = DiffPatch.from_patch(patchfile)
@@ -259,6 +262,8 @@ class Application(tk.Frame):
                 try:
                     patch.apply(src, dol)
                     dol.seek(0)
+                    patcher.change_file("sys/main.dol", dol)
+                    log.info("Applied patch")
                 except WrongSourceFile:
                     do_continue = messagebox.askyesno(
                         "Warning",
@@ -273,6 +278,8 @@ class Application(tk.Frame):
                     else:
                         patch.apply(src, dol, ignore_hash_mismatch=True)
                         dol.seek(0)
+                        patcher.change_file("sys/main.dol", dol)
+                        log.info("Applied patch, there may be side effects.")
 
         # Go through each mod path
         for mod in self.input_mod_path.get_paths():
