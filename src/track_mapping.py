@@ -78,6 +78,7 @@ arc_mapping = {
     "Waluigi Stadium": ["Waluigi", "waluigi"],
     "Wario Colosseum": ["Wario", "wario"],
     "Dino Jungle": ["Diddy", "diddy"],
+    "Dino Dino Jungle": ["Diddy", "diddy"],
     "DK Mountain": ["Donkey", "donkey"],
     "Bowser Castle": ["Koopa", "koopa"],
     "Rainbow Road": ["Rainbow", "rainbow"],
@@ -103,6 +104,7 @@ music_mapping = {
     "Waluigi Stadium": 42,
     "Wario Colosseum": 43,
     "Dino Jungle": 44,
+    "Dino Dino Jungle": 44,
     "DK Mountain": 45,
     "Bowser Castle": 47,
     "Rainbow Road": 49,
@@ -151,6 +153,9 @@ file_mapping = {
         "Wario_name.bti", "wario_names.bti", "coname_wario_colosseum.bti", "cop_wario_colosseum.bti"
     ],
     "Dino Jungle": ["COURSE_JUNGLE_0.x.32.c4.ast", "FINALLAP_JUNGLE_0.x.32.c4.ast", 
+        "Diddy_name.bti", "diddy_names.bti", "coname_dino_dino_jungle.bti", "cop_dino_dino_jungle.bti"
+    ],
+    "Dino Dino Jungle": ["COURSE_JUNGLE_0.x.32.c4.ast", "FINALLAP_JUNGLE_0.x.32.c4.ast", 
         "Diddy_name.bti", "diddy_names.bti", "coname_dino_dino_jungle.bti", "cop_dino_dino_jungle.bti"
     ],
     #"DK Mountain": ["COURSE_JUNGLE_0.x.32.c4.ast", "FINALLAP_JUNGLE_0.x.32.c4.ast", 
