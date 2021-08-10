@@ -133,7 +133,7 @@ class ZipToIsoPatcher(object):
                     continue
 
             if filepath_path.is_relative_to(startpath):
-                path = filepath.relative_to(startpath)
+                path = filepath_path.relative_to(startpath)
                 if len(path.parts) == 0:
                     continue 
                 
