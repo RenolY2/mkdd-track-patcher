@@ -20,6 +20,12 @@ is filled in by appending _new.iso to the input ISO name. You can change where t
 is written to by clicking on the Save button.
 Press on Patch to create a new ISO with the race track and mod zips patched in.
 
+# Folder mode instead of zip mode 
+By changing "Folder_mode" from False to True in config.ini you will be able to use patches 
+that aren't zipped and just stored in a folder. This can allow for more rapid patch development.
+When choosing patches you will then choose the folder that contains the folders of patches.
+Make sure the folder you choose doesn't contain any patches you don't want.
+
 # How to create a custom track zip 
 If you are a modder who creates custom tracks for MKDD and you want to package up your track 
 into a zip so that it is compatible with the MKDD Patcher, here is what you need to do:
@@ -82,7 +88,7 @@ replaces is the name of the track being replaced and can be one of the following
     Mushroom City
     Waluigi Stadium
     Wario Colosseum
-    Dino Jungle
+    Dino Dino Jungle
     DK Mountain
     Bowser Castle
     Rainbow Road
@@ -164,4 +170,4 @@ assign a music id from a race track to them in the MKDD Track Editor)
 
 # Running from source code
 Get the source code of the patcher from https://github.com/RenolY2/mkdd-track-patcher \
-Install Python 3 version 3.8 or newer and run `gui.py` with it. Alternatively, execute `run.bat` if running on Windows
+Install Python 3 version 3.8 or newer and run `patcher-gui.py` with it. Alternatively, execute `run.bat` if running on Windows
