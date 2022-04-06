@@ -388,7 +388,10 @@ class Application(tk.Frame):
                 
                 # Copy track arc 
                 track_arc = Archive.from_file(patcher.zip_open("track.arc"))
-                track_mp_arc = Archive.from_file(patcher.zip_open("track_mp.arc"))
+                if patcher.src_file_exists("track_mp.arc"):
+                    track_mp_arc = Archive.from_file(patcher.zip_open("track_mp.arc"))
+                else:
+                    track_mp_arc = Archive.from_file(patcher.zip_open("track.arc"))
                 
                 
                 # Patch minimap settings in dol 
