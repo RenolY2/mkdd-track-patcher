@@ -1,2 +1,2 @@
-python patcher-gui.py
+python mkdd_patcher.py
 pause
