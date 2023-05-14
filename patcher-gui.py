@@ -189,24 +189,35 @@ class Application(tk.Frame):
                               command=self.master.destroy)
         self.quit.pack(side="left")"""
 
+    def patch(self):
+        return PatcherHelper.patch(self.input_iso_path.path.get(), self.output_iso_path.path.get(),
+                                   self.input_mod_path.get_paths())
+
+    def say_hi(self):
+        log.info("hi there, everyone!")
+
+
+class PatcherHelper:
+
     # Patch the ISO
     # Should this be included in the gui or moved to patcher.py
-    def patch(self):
-        log.info(f"Input iso: {self.input_iso_path.path.get()}")
-        log.info(f"Input track: {self.input_mod_path.path.get()}")
-        log.info(f"Output iso: {self.output_iso_path.path.get()}")
+    @classmethod
+    def patch(cls, input_iso_path: str, output_iso_path: str, custom_tracks: 'tuple[str]'):
+        log.info(f"Input iso: {input_iso_path}")
+        log.info(f"Output iso: {output_iso_path}")
+        log.info(f"Custom tracks: {custom_tracks}")
 
         # If ISO or mod zip aren't provided, raise error
-        if not self.input_iso_path.path.get():
+        if not input_iso_path:
             messagebox.showerror("Error", "You need to choose a MKDD ISO or GCM.")
             return
-        if not self.input_mod_path.get_paths():
+        if not custom_tracks:
             messagebox.showerror("Error", "You need to choose a MKDD Track/Mod zip file.")
             return
 
         # Open iso and get first four bytes
         # Expected: GM4E / GM4P / GM4J
-        with open(self.input_iso_path.path.get(), "rb") as f:
+        with open(input_iso_path, "rb") as f:
             gameid = f.read(4)
 
         # Display error if not a valid gameid
@@ -219,8 +230,7 @@ class Application(tk.Frame):
 
         # Create GCM object with the ISO
         log.info("Patching now")
-        isopath = self.input_iso_path.path.get()
-        iso = GCM(isopath)
+        iso = GCM(input_iso_path)
         iso.read_entire_disc()
 
         # Create ZipToIsoPatcher object
@@ -234,7 +244,7 @@ class Application(tk.Frame):
 
         code_patches = []
 
-        for mod in self.input_mod_path.get_paths():
+        for mod in custom_tracks:
             log.info(mod)
             patcher.set_zip(mod)
 
@@ -283,7 +293,7 @@ class Application(tk.Frame):
                         log.info("Applied patch, there may be side effects.")
 
         # Go through each mod path
-        for mod in self.input_mod_path.get_paths():
+        for mod in custom_tracks:
             # Get mod zip
             log.info(mod)
             mod_name = os.path.basename(mod)
@@ -564,9 +574,9 @@ class Application(tk.Frame):
             if not do_continue:
                 messagebox.showinfo("Info", "ISO patching cancelled.")
                 return
-        log.info(f"writing iso to {self.output_iso_path.path.get()}")
+        log.info(f"writing iso to {output_iso_path}")
         try:
-            iso.export_disc_to_iso_with_changed_files(self.output_iso_path.path.get())
+            iso.export_disc_to_iso_with_changed_files(output_iso_path)
         except Exception as error:
             messagebox.showerror("Error", "Error while writing ISO: {0}".format(str(error)))
             raise
@@ -579,8 +589,6 @@ class Application(tk.Frame):
 
             log.info("finished writing iso, you are good to go!")
 
-    def say_hi(self):
-        log.info("hi there, everyone!")
 
 class About(tk.Frame):
     def __init__(self, master=None):
