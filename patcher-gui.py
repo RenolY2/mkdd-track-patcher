@@ -1,3 +1,4 @@
+import signal
 import sys
 import logging
 import tkinter as tk
@@ -592,6 +593,8 @@ class About(tk.Frame):
 
 
 if __name__ == "__main__":
+    signal.signal(signal.SIGINT, signal.SIG_DFL)
+
     root = tk.Tk()
     root.geometry("350x150")
     def show_about():
