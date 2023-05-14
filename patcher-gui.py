@@ -190,8 +190,26 @@ class Application(tk.Frame):
         self.quit.pack(side="left")"""
 
     def patch(self):
-        return PatcherHelper.patch(self.input_iso_path.path.get(), self.output_iso_path.path.get(),
-                                   self.input_mod_path.get_paths())
+        def message_callback(title: str, icon: str, text: str):
+            _ = icon
+            messagebox.showinfo(title, text)
+
+        def prompt_callback(title: str, icon: str, text: str, buttons_labels: 'tuple[str]') -> bool:
+            _ = icon, buttons_labels
+            return messagebox.askyesno(title, text)
+
+        def error_callback(title: str, icon: str, text: str):
+            _ = icon
+            messagebox.showerror(title, text)
+
+        return PatcherHelper.patch(
+            self.input_iso_path.path.get(),
+            self.output_iso_path.path.get(),
+            self.input_mod_path.get_paths(),
+            message_callback,
+            prompt_callback,
+            error_callback,
+        )
 
     def say_hi(self):
         log.info("hi there, everyone!")
@@ -202,17 +220,25 @@ class PatcherHelper:
     # Patch the ISO
     # Should this be included in the gui or moved to patcher.py
     @classmethod
-    def patch(cls, input_iso_path: str, output_iso_path: str, custom_tracks: 'tuple[str]'):
+    def patch(
+        cls,
+        input_iso_path: str,
+        output_iso_path: str,
+        custom_tracks: 'tuple[str]',
+        message_callback: callable,
+        prompt_callback: callable,
+        error_callback: callable,
+    ):
         log.info(f"Input iso: {input_iso_path}")
         log.info(f"Output iso: {output_iso_path}")
         log.info(f"Custom tracks: {custom_tracks}")
 
         # If ISO or mod zip aren't provided, raise error
         if not input_iso_path:
-            messagebox.showerror("Error", "You need to choose a MKDD ISO or GCM.")
+            error_callback("Error", "error", "You need to choose a MKDD ISO or GCM.")
             return
         if not custom_tracks:
-            messagebox.showerror("Error", "You need to choose a MKDD Track/Mod zip file.")
+            error_callback("Error", "error", "You need to choose a MKDD Track/Mod zip file.")
             return
 
         # Open iso and get first four bytes
@@ -222,7 +248,8 @@ class PatcherHelper:
 
         # Display error if not a valid gameid
         if gameid not in GAMEID_TO_REGION:
-            messagebox.showerror("Error", "Unknown Game ID: {}. Probably not a MKDD ISO.".format(gameid))
+            error_callback("Error", "error",
+                           "Unknown Game ID: {}. Probably not a MKDD ISO.".format(gameid))
             return
 
         # Get gameid
@@ -253,9 +280,10 @@ class PatcherHelper:
                 code_patches.append(mod)
 
         if len(code_patches) > 1:
-            messagebox.showerror("Error",
-                                 "More than one code patch selected:\n{}\nPlease only select one code patch.".format(
-                                    "\n".join(os.path.basename(x) for x in code_patches)))
+            error_callback(
+                "Error", "error",
+                "More than one code patch selected:\n{}\nPlease only select one code patch.".format(
+                    "\n".join(os.path.basename(x) for x in code_patches)))
 
             return
 
@@ -276,13 +304,13 @@ class PatcherHelper:
                     patcher.change_file("sys/main.dol", dol)
                     log.info("Applied patch")
                 except WrongSourceFile:
-                    do_continue = messagebox.askyesno(
-                        "Warning",
+                    do_continue = prompt_callback(
+                        "Warning", "warning",
                         "The game executable has already been patched or is different than expected. "
                         "Patching it again may have unintended side effects (e.g. crashing) "
                         "so it is recommended to cancel patching and try again "
                         "on an unpatched, vanilla game ISO. \n\n"
-                        "Do you want to continue?")
+                        "Do you want to continue?", ("No", "Continue"))
 
                     if not do_continue:
                         return
@@ -568,24 +596,24 @@ class PatcherHelper:
             warn_text += ("\nIf you continue patching, the new ISO might be inconsistent. \n"
                 "Do you want to continue patching? \n")
 
-            do_continue = messagebox.askyesno("Warning",
-                warn_text)
+            do_continue = prompt_callback("Warning", "warning", warn_text, ("No", "Continue"))
 
             if not do_continue:
-                messagebox.showinfo("Info", "ISO patching cancelled.")
+                message_callback("Info", "info", "ISO patching cancelled.")
                 return
         log.info(f"writing iso to {output_iso_path}")
         try:
             iso.export_disc_to_iso_with_changed_files(output_iso_path)
         except Exception as error:
-            messagebox.showerror("Error", "Error while writing ISO: {0}".format(str(error)))
+            error_callback("Error while writing ISO: {0}".format(str(error)))
             raise
         else:
             if skipped == 0:
-                messagebox.showinfo("Info", "New ISO successfully created!")
+                message_callback("Info", "success", "New ISO successfully created!")
             else:
-                messagebox.showinfo("Info", ("New ISO successfully created!\n"
-                    "{0} zip file(s) skipped due to not being race tracks or mods.".format(skipped)))
+                message_callback(
+                    "Info", "successwarning", "New ISO successfully created!\n"
+                    "{0} zip file(s) skipped due to not being race tracks or mods.".format(skipped))
 
             log.info("finished writing iso, you are good to go!")
 
