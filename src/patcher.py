@@ -1,6 +1,6 @@
-import os 
-import json 
-import struct 
+import os
+import json
+import struct
 import zipfile
 import pathlib
 import logging
@@ -52,7 +52,7 @@ def patch_musicid(arc, new_music):
     new_id = music_mapping.get(new_music)
     if not new_id:
         return
-        
+
     for filename in arc.root.files:
         if filename.endswith("_course.bol"):
             data = arc.root.files[filename]
@@ -72,20 +72,20 @@ def patch_baa(iso):
     """
     baa = iso.read_file_data("files/AudioRes/GCKart.baa")
     baadata = baa.read()
-    
+
     if b"COURSE_YCIRCUIT_0" in baadata:
         return # Baa is already patched, nothing to do
-    
+
     bsftoffset = baadata.find(b"bsft")
     assert bsftoffset < 0x100
-    
+
     baa.seek(len(baadata))
     new_bsft = BSFT()
     new_bsft.tracks = bsft
     write_pad32(baa)
     bsft_offset = baa.tell()
     new_bsft.write_to_file(baa)
-    
+
     write_pad32(baa)
     baa.seek(bsftoffset)
     magic = baa.read(4)
@@ -93,24 +93,24 @@ def patch_baa(iso):
     write_uint32(baa, bsft_offset)
     iso.changed_files["files/AudioRes/GCKart.baa"] = baa
     log.info("patched baa")
-    
+
     copy_if_not_exist(iso, "AudioRes/Stream/COURSE_YCIRCUIT_0.x.32.c4.ast", "AudioRes/Stream/COURSE_CIRCUIT_0.x.32.c4.ast")
     copy_if_not_exist(iso, "AudioRes/Stream/COURSE_MCIRCUIT_0.x.32.c4.ast", "AudioRes/Stream/COURSE_CIRCUIT_0.x.32.c4.ast")
-    
+
     copy_if_not_exist(iso, "AudioRes/Stream/COURSE_CRUISER_0.x.32.c4.ast", "AudioRes/Stream/COURSE_BEACH_0.x.32.c4.ast")
     copy_if_not_exist(iso, "AudioRes/Stream/COURSE_CITY_0.x.32.c4.ast", "AudioRes/Stream/COURSE_HIWAY_0.x.32.c4.ast")
     copy_if_not_exist(iso, "AudioRes/Stream/COURSE_COLOSSEUM_0.x.32.c4.ast", "AudioRes/Stream/COURSE_STADIUM_0.x.32.c4.ast")
     copy_if_not_exist(iso, "AudioRes/Stream/COURSE_MOUNTAIN_0.x.32.c4.ast", "AudioRes/Stream/COURSE_JUNGLE_0.x.32.c4.ast")
-    
-    
+
+
     copy_if_not_exist(iso, "AudioRes/Stream/FINALLAP_YCIRCUIT_0.x.32.c4.ast", "AudioRes/Stream/FINALLAP_CIRCUIT_0.x.32.c4.ast")
     copy_if_not_exist(iso, "AudioRes/Stream/FINALLAP_MCIRCUIT_0.x.32.c4.ast", "AudioRes/Stream/FINALLAP_CIRCUIT_0.x.32.c4.ast")
-    
+
     copy_if_not_exist(iso, "AudioRes/Stream/FINALLAP_CRUISER_0.x.32.c4.ast", "AudioRes/Stream/FINALLAP_BEACH_0.x.32.c4.ast")
     copy_if_not_exist(iso, "AudioRes/Stream/FINALLAP_CITY_0.x.32.c4.ast", "AudioRes/Stream/FINALLAP_HIWAY_0.x.32.c4.ast")
     copy_if_not_exist(iso, "AudioRes/Stream/FINALLAP_COLOSSEUM_0.x.32.c4.ast", "AudioRes/Stream/FINALLAP_STADIUM_0.x.32.c4.ast")
     copy_if_not_exist(iso, "AudioRes/Stream/FINALLAP_MOUNTAIN_0.x.32.c4.ast", "AudioRes/Stream/FINALLAP_JUNGLE_0.x.32.c4.ast")
-    
+
     log.info("Copied ast files")
 
 
@@ -151,7 +151,7 @@ def patch_minimap_dol(dol, track, region, minimap_setting, intended_track=True):
     write_float(dol, minimap_setting["Bottom Right Corner X"])
     dol.seek(int(corner2z, 16))
     write_float(dol, minimap_setting["Bottom Right Corner Z"])
-    
+
     if not intended_track:
         minimap_transforms = addresses_json[region+"_MinimapLocation"]
         if track in minimap_transforms:
@@ -163,23 +163,23 @@ def patch_minimap_dol(dol, track, region, minimap_setting, intended_track=True):
                 p1_offx, p1_offx2, p1_offy, p1_scale = minimap_transforms[track][0:4]
                 p2_offx, p2_offx2, p2_offy, p2_scale = minimap_transforms[track][4:8]
                 p3_offx, p3_offx2, p3_offy, p3_scale = minimap_transforms[track][8:12]
-                
+
                 write_uint32_offset(dol, 0xC02298E4, int(p1_offx2, 16))
                 write_uint32_offset(dol, 0xC02298EC, int(p2_offx2, 16))
                 write_uint32_offset(dol, 0xC0229838, int(p3_offx2, 16))
-            
+
             write_uint32_offset(dol, 0xC02298E4, int(p1_offx, 16))
             write_uint32_offset(dol, 0xC02298EC, int(p2_offx, 16))
             write_uint32_offset(dol, 0xC0229838, int(p3_offx, 16))
-            
+
             write_uint32_offset(dol, 0xC02298E8, int(p1_offy, 16))
             write_uint32_offset(dol, 0xC0229838, int(p2_offy, 16))
             write_uint32_offset(dol, 0xC0229838, int(p3_offy, 16))
-            
+
             write_uint32_offset(dol, 0xC02298A8, int(p1_scale, 16))
             write_uint32_offset(dol, 0xC02298B4, int(p2_scale, 16))
             write_uint32_offset(dol, 0xC022983C, int(p3_scale, 16))
-            
+
 
 def rename_archive(arc, newname, mp):
     """Renames arc file
@@ -190,21 +190,21 @@ def rename_archive(arc, newname, mp):
         mp (bool): Whether to modify the multiplayer level or not
     """
     arc.root.name = newname+"l" if mp else newname
-    
+
     rename = []
-    
+
     for filename, file in arc.root.files.items():
         if "_" in filename:
             rename.append((filename, file))
-    
+
     for filename, file in rename:
         del arc.root.files[filename]
         name, rest = filename.split("_", 1)
-        
+
         if newname == "luigi2":
-            newfilename = "luigi_"+rest 
+            newfilename = "luigi_"+rest
         else:
-            newfilename = newname + "_" + rest 
-            
+            newfilename = newname + "_" + rest
+
         file.name = newfilename
-        arc.root.files[newfilename] = file 
+        arc.root.files[newfilename] = file
