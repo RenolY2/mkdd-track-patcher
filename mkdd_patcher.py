@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 import configparser
-import importlib
 import os
 import platform
 import signal
@@ -10,9 +9,10 @@ import customtkinter
 
 from PIL import Image, ImageTk
 
-from src import CTkToolTip
-
-patcher_gui = importlib.import_module('patcher-gui')
+from src import (
+    CTkToolTip,
+    patcher,
+)
 
 ICON_RESOLUTIONS = (16, 24, 32, 48, 64, 128, 256)
 
@@ -234,8 +234,8 @@ class MKDDPatcherApp(customtkinter.CTk):
             MessageBox(self, title, icon, text, '', False, ('Close', )).wait_answer()
 
         try:
-            patcher_gui.PatcherHelper.patch(input_iso, output_iso, custom_tracks, message_callback,
-                                            prompt_callback, error_callback)
+            patcher.patch(input_iso, output_iso, custom_tracks, message_callback, prompt_callback,
+                          error_callback)
         except Exception as e:
             MessageBox(self, 'Exception', 'error', 'An exception occurred :', str(e), False,
                        ('Close', )).wait_answer()

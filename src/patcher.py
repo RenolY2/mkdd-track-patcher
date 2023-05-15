@@ -1,6 +1,7 @@
 import os
 import json
 import struct
+import sys
 import zipfile
 import pathlib
 import logging
@@ -15,7 +16,9 @@ from .zip_helper import ZipToIsoPatcher
 from .conflict_checker import Conflicts
 from .rarc import Archive, write_pad32, write_uint32
 from .track_mapping import music_mapping, arc_mapping, file_mapping, bsft, battle_mapping
+from .pybinpatch import DiffPatch, WrongSourceFile
 
+logging.basicConfig(stream=sys.stdout, level=logging.INFO, format="> %(message)s")
 log = logging.getLogger(__name__)
 
 GAMEID_TO_REGION = {
@@ -208,3 +211,413 @@ def rename_archive(arc, newname, mp):
 
         file.name = newfilename
         arc.root.files[newfilename] = file
+
+
+def patch(
+    input_iso_path: str,
+    output_iso_path: str,
+    custom_tracks: 'tuple[str]',
+    message_callback: callable,
+    prompt_callback: callable,
+    error_callback: callable,
+):
+    log.info(f"Input iso: {input_iso_path}")
+    log.info(f"Output iso: {output_iso_path}")
+    log.info(f"Custom tracks: {custom_tracks}")
+
+    # If ISO or mod zip aren't provided, raise error
+    if not input_iso_path:
+        error_callback("Error", "error", "You need to choose a MKDD ISO or GCM.")
+        return
+    if not custom_tracks:
+        error_callback("Error", "error", "You need to choose a MKDD Track/Mod zip file.")
+        return
+
+    # Open iso and get first four bytes
+    # Expected: GM4E / GM4P / GM4J
+    with open(input_iso_path, "rb") as f:
+        gameid = f.read(4)
+
+    # Display error if not a valid gameid
+    if gameid not in GAMEID_TO_REGION:
+        error_callback("Error", "error",
+                       "Unknown Game ID: {}. Probably not a MKDD ISO.".format(gameid))
+        return
+
+    # Get gameid
+    region = GAMEID_TO_REGION[gameid]
+
+    # Create GCM object with the ISO
+    log.info("Patching now")
+    iso = GCM(input_iso_path)
+    iso.read_entire_disc()
+
+    # Create ZipToIsoPatcher object
+    patcher = ZipToIsoPatcher(None, iso)
+
+    at_least_1_track = False
+
+    conflicts = Conflicts()
+
+    skipped = 0
+
+    code_patches = []
+
+    for mod in custom_tracks:
+        log.info(mod)
+        patcher.set_zip(mod)
+
+        if patcher.is_code_patch():
+            log.info("Found code patch")
+            code_patches.append(mod)
+        patcher.close()
+
+    if len(code_patches) > 1:
+        error_callback(
+            "Error", "error",
+            "More than one code patch selected:\n{}\nPlease only select one code patch.".format(
+                "\n".join(os.path.basename(x) for x in code_patches)))
+
+        return
+
+    elif len(code_patches) == 1:
+        patcher.set_zip(code_patches[0])
+        patch_name = "codepatch_" + region + ".bin"
+        log.info("{0} exists? {1}".format(patch_name, patcher.src_file_exists(patch_name)))
+        if patcher.src_file_exists(patch_name):
+            patchfile = patcher.zip_open(patch_name)
+            patch = DiffPatch.from_patch(patchfile)
+            dol = patcher.get_iso_file("sys/main.dol")
+
+            src = dol.read()
+            dol.seek(0)
+            try:
+                patch.apply(src, dol)
+                dol.seek(0)
+                patcher.change_file("sys/main.dol", dol)
+                log.info("Applied patch")
+            except WrongSourceFile:
+                do_continue = prompt_callback(
+                    "Warning", "warning",
+                    "The game executable has already been patched or is different than expected. "
+                    "Patching it again may have unintended side effects (e.g. crashing) "
+                    "so it is recommended to cancel patching and try again "
+                    "on an unpatched, vanilla game ISO. \n\n"
+                    "Do you want to continue?", ("No", "Continue"))
+
+                if not do_continue:
+                    return
+                else:
+                    patch.apply(src, dol, ignore_hash_mismatch=True)
+                    dol.seek(0)
+                    patcher.change_file("sys/main.dol", dol)
+                    log.info("Applied patch, there may be side effects.")
+        patcher.close()
+
+    # Go through each mod path
+    for mod in custom_tracks:
+        # Get mod zip
+        log.info(mod)
+        mod_name = os.path.basename(mod)
+        patcher.set_zip(mod)
+
+        if patcher.is_code_patch():
+            patcher.close()
+            continue
+
+        config = configparser.ConfigParser()
+        #log.info(trackzip.namelist())
+        if patcher.src_file_exists("modinfo.ini"):
+
+            modinfo = patcher.zip_open("modinfo.ini")
+            config.read_string(str(modinfo.read(), encoding="utf-8"))
+            log.info(f"Mod {config['Config']['modname']} by {config['Config']['author']}")
+            log.info(f"Description: {config['Config']['description']}")
+            # patch files
+            #log.info(trackzip.namelist())
+
+            arcs, files = patcher.get_file_changes("files/")
+            for filepath in files:
+                patcher.copy_file("files/" + filepath, "files/" + filepath)
+                conflicts.add_conflict(filepath, mod_name)
+
+            for arc, arcfiles in arcs.items():
+                if arc == "race2d.arc":
+                    continue
+
+                srcarcpath = "files/" + arc
+                if not iso.file_exists(srcarcpath):
+                    continue
+
+                #log.info("Loaded arc:", arc)
+                destination_arc = Archive.from_file(patcher.get_iso_file(srcarcpath))
+
+                for file in arcfiles:
+                    #log.info("files/"+file)
+                    try:
+                        patcher.copy_file_into_arc("files/" + arc + "/" + file,
+                                                   destination_arc,
+                                                   file,
+                                                   missing_ok=False)
+                    except FileNotFoundError:
+                        raise FileNotFoundError(
+                            "Couldn't find '{0}' in '{1}'\n(Pay attention to arc root folder name!)"
+                            .format(file, srcarcpath))
+
+                    conflicts.add_conflict(arc + "/" + file, mod_name)
+
+                newarc = BytesIO()
+                destination_arc.write_arc_uncompressed(newarc)
+                newarc.seek(0)
+
+                patcher.change_file(srcarcpath, newarc)
+
+            if "race2d.arc" in arcs:
+                arcfiles = arcs["race2d.arc"]
+                #log.info("Loaded race2d arc")
+                mram_arc = Archive.from_file(patcher.get_iso_file("files/MRAM.arc"))
+
+                race2d_arc = Archive.from_file(mram_arc["mram/race2d.arc"])
+
+                for file in arcfiles:
+                    patcher.copy_file_into_arc("files/race2d.arc/" + file,
+                                               race2d_arc,
+                                               file,
+                                               missing_ok=False)
+                    conflicts.add_conflict("race2d.arc/" + file, mod_name)
+
+                race2d_arc_file = mram_arc["mram/race2d.arc"]
+                race2d_arc_file.seek(0)
+                race2d_arc.write_arc_uncompressed(race2d_arc_file)
+                #race2d_arc_file.truncate()
+
+                newarc = BytesIO()
+                mram_arc.write_arc_uncompressed(newarc)
+                newarc.seek(0)
+
+                patcher.change_file("files/MRAM.arc", newarc)
+
+        elif patcher.src_file_exists("trackinfo.ini"):
+            at_least_1_track = True
+            trackinfo = patcher.zip_open("trackinfo.ini")
+            config.read_string(str(trackinfo.read(), encoding="utf-8"))
+
+            #use_extended_music = config.getboolean("Config", "extended_music_slots")
+            replace = config["Config"]["replaces"].strip()
+            replace_music = config["Config"]["replaces_music"].strip()
+
+            log.info("Imported Track Info:")
+            log.info(f"Track '{config['Config']['trackname']}' created by "
+                     f"{config['Config']['author']} replaces {config['Config']['replaces']}")
+
+            minimap_settings = json.load(patcher.zip_open("minimap.json"))
+
+            conflicts.add_conflict(replace, mod_name)
+
+            bigname, smallname = arc_mapping[replace]
+            if replace in file_mapping:
+                _, _, bigbanner, smallbanner, trackname, trackimage = file_mapping[replace]
+            else:
+                _, trackimage, trackname = battle_mapping[replace]
+
+            # Copy staff ghost
+            patcher.copy_file("staffghost.ght", "files/StaffGhosts/{}.ght".format(bigname))
+
+            # Copy track arc
+            track_arc = Archive.from_file(patcher.zip_open("track.arc"))
+            if patcher.src_file_exists("track_mp.arc"):
+                track_mp_arc = Archive.from_file(patcher.zip_open("track_mp.arc"))
+            else:
+                track_mp_arc = Archive.from_file(patcher.zip_open("track.arc"))
+
+            # Patch minimap settings in dol
+            dol = DolFile(patcher.get_iso_file("sys/main.dol"))
+            patch_minimap_dol(dol,
+                              replace,
+                              region,
+                              minimap_settings,
+                              intended_track=(track_arc.root.name == smallname))
+            dol._rawdata.seek(0)
+            patcher.change_file("sys/main.dol", dol._rawdata)
+
+            patch_musicid(track_arc, replace_music)
+            patch_musicid(track_mp_arc, replace_music)
+
+            rename_archive(track_arc, smallname, False)
+            rename_archive(track_mp_arc, smallname, True)
+
+            newarc = BytesIO()
+            track_arc.write_arc_uncompressed(newarc)
+
+            newarc_mp = BytesIO()
+            track_mp_arc.write_arc_uncompressed(newarc_mp)
+
+            patcher.change_file("files/Course/{}.arc".format(bigname), newarc)
+            patcher.change_file("files/Course/{}L.arc".format(bigname), newarc_mp)
+
+            log.info(f"replacing files/Course/{bigname}.arc")
+
+            if replace == "Luigi Circuit":
+                if patcher.src_file_exists("track_50cc.arc"):
+                    patcher.copy_file("track_50cc.arc", "files/Course/Luigi.arc")
+                else:
+                    rename_archive(track_arc, "luigi", False)
+                    newarc = BytesIO()
+                    track_arc.write_arc_uncompressed(newarc)
+
+                    patcher.change_file("files/Course/Luigi.arc", newarc)
+
+                if patcher.src_file_exists("track_mp_50cc.arc"):
+                    patcher.copy_file("track_mp_50cc.arc", "files/Course/LuigiL.arc")
+                else:
+                    rename_archive(track_mp_arc, "luigi", True)
+
+                    newarc = BytesIO()
+                    track_mp_arc.write_arc_uncompressed(newarc)
+
+                    patcher.change_file("files/Course/LuigiL.arc", newarc)
+
+            if bigname == "Luigi2":
+                bigname = "Luigi"
+            if smallname == "luigi2":
+                smallname = "luigi"
+            # Copy language images
+            missing_languages = []
+            main_language = config["Config"]["main_language"]
+
+            for srclanguage in LANGUAGES:
+                dstlanguage = srclanguage
+                if not patcher.src_file_exists("course_images/{}/".format(srclanguage)):
+                    #missing_languages.append(srclanguage)
+                    #continue
+                    srclanguage = main_language
+
+                coursename_arc_path = "files/SceneData/{}/coursename.arc".format(dstlanguage)
+                courseselect_arc_path = "files/SceneData/{}/courseselect.arc".format(dstlanguage)
+                lanplay_arc_path = "files/SceneData/{}/LANPlay.arc".format(dstlanguage)
+                mapselect_arc_path = "files/SceneData/{}/mapselect.arc".format(dstlanguage)
+
+                if not iso.file_exists(coursename_arc_path):
+                    continue
+
+                #log.info("Found language", language)
+                patcher.copy_file("course_images/{}/track_big_logo.bti".format(srclanguage),
+                                  "files/CourseName/{}/{}_name.bti".format(dstlanguage, bigname))
+
+                if replace not in battle_mapping:
+                    coursename_arc = Archive.from_file(patcher.get_iso_file(coursename_arc_path))
+                    courseselect_arc = Archive.from_file(
+                        patcher.get_iso_file(courseselect_arc_path))
+
+                    patcher.copy_file_into_arc(
+                        "course_images/{}/track_small_logo.bti".format(srclanguage), coursename_arc,
+                        "coursename/timg/{}_names.bti".format(smallname))
+                    patcher.copy_file_into_arc(
+                        "course_images/{}/track_name.bti".format(srclanguage), courseselect_arc,
+                        "courseselect/timg/{}".format(trackname))
+                    patcher.copy_file_into_arc(
+                        "course_images/{}/track_image.bti".format(srclanguage), courseselect_arc,
+                        "courseselect/timg/{}".format(trackimage))
+
+                    newarc = BytesIO()
+                    coursename_arc.write_arc_uncompressed(newarc)
+                    newarc.seek(0)
+
+                    newarc_mp = BytesIO()
+                    courseselect_arc.write_arc_uncompressed(newarc_mp)
+                    newarc_mp.seek(0)
+
+                    patcher.change_file(coursename_arc_path, newarc)
+                    patcher.change_file(courseselect_arc_path, newarc_mp)
+
+                else:
+                    mapselect_arc = Archive.from_file(patcher.get_iso_file(mapselect_arc_path))
+
+                    patcher.copy_file_into_arc(
+                        "course_images/{}/track_name.bti".format(srclanguage), mapselect_arc,
+                        "mapselect/timg/{}".format(trackname))
+                    patcher.copy_file_into_arc(
+                        "course_images/{}/track_image.bti".format(srclanguage), mapselect_arc,
+                        "mapselect/timg/{}".format(trackimage))
+
+                    newarc_mapselect = BytesIO()
+                    mapselect_arc.write_arc_uncompressed(newarc_mapselect)
+                    newarc_mapselect.seek(0)
+
+                    patcher.change_file(mapselect_arc_path, newarc_mapselect)
+
+                lanplay_arc = Archive.from_file(patcher.get_iso_file(lanplay_arc_path))
+                patcher.copy_file_into_arc("course_images/{}/track_name.bti".format(srclanguage),
+                                           lanplay_arc, "lanplay/timg/{}".format(trackname))
+
+                newarc_lan = BytesIO()
+                lanplay_arc.write_arc_uncompressed(newarc_lan)
+                newarc_lan.seek(0)
+
+                patcher.change_file(lanplay_arc_path, newarc_lan)
+
+            # Copy over the normal and fast music
+            # Note: if the fast music is missing, the normal music is used as fast music
+            # and vice versa. If both are missing, no copying is happening due to behaviour of
+            # copy_or_add_file function
+            if replace in file_mapping:
+                normal_music, fast_music = file_mapping[replace_music][0:2]
+                patcher.copy_or_add_file("lap_music_normal.ast",
+                                         "files/AudioRes/Stream/{}".format(normal_music),
+                                         missing_ok=True)
+                patcher.copy_or_add_file("lap_music_fast.ast",
+                                         "files/AudioRes/Stream/{}".format(fast_music),
+                                         missing_ok=True)
+                if not patcher.src_file_exists("lap_music_normal.ast"):
+                    patcher.copy_or_add_file("lap_music_fast.ast",
+                                             "files/AudioRes/Stream/{}".format(normal_music),
+                                             missing_ok=True)
+                if not patcher.src_file_exists("lap_music_fast.ast"):
+                    patcher.copy_or_add_file("lap_music_normal.ast",
+                                             "files/AudioRes/Stream/{}".format(fast_music),
+                                             missing_ok=True)
+                conflicts.add_conflict("music_" + replace_music, mod_name)
+        else:
+            log.warning("not a race track or mod, skipping...")
+            skipped += 1
+        patcher.close()
+
+    if at_least_1_track:
+        patch_baa(iso)
+
+    log.info("patches applied")
+
+    #log.info("all changed files:", iso.changed_files.keys())
+    if conflicts.conflict_appeared:
+        resulting_conflicts = conflicts.get_conflicts()
+        warn_text = ("File change conflicts between mods were encountered.\n"
+                     "Conflicts between the following mods exist:\n\n")
+        for i in range(min(len(resulting_conflicts), 5)):
+            warn_text += "{0}. ".format(i + 1) + ", ".join(resulting_conflicts[i])
+            warn_text += "\n"
+        if len(resulting_conflicts) > 5:
+            warn_text += "And {} more".format(len(resulting_conflicts) - 5)
+
+        warn_text += ("\nIf you continue patching, the new ISO might be inconsistent. \n"
+                      "Do you want to continue patching? \n")
+
+        do_continue = prompt_callback("Warning", "warning", warn_text, ("No", "Continue"))
+
+        if not do_continue:
+            message_callback("Info", "info", "ISO patching cancelled.")
+            return
+    log.info(f"writing iso to {output_iso_path}")
+    try:
+        iso.export_disc_to_iso_with_changed_files(output_iso_path)
+    except Exception as error:
+        error_callback("Error while writing ISO: {0}".format(str(error)))
+        raise
+    else:
+        if skipped == 0:
+            message_callback("Info", "success", "New ISO successfully created!")
+        else:
+            message_callback(
+                "Info", "successwarning", "New ISO successfully created!\n"
+                "{0} zip file(s) skipped due to not being race tracks or mods.".format(skipped))
+
+        log.info("finished writing iso, you are good to go!")

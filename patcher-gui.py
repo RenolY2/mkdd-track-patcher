@@ -8,7 +8,6 @@ from tkinter import messagebox
 
 from src.patcher import *
 from src.configuration import read_config, make_default_config, save_cfg, update_config
-from src.pybinpatch import DiffPatch, WrongSourceFile
 
 logging.basicConfig(stream=sys.stdout, level=logging.INFO, format="> %(message)s")
 log = logging.getLogger(__name__)
@@ -202,7 +201,7 @@ class Application(tk.Frame):
             _ = icon
             messagebox.showerror(title, text)
 
-        return PatcherHelper.patch(
+        return patch(
             self.input_iso_path.path.get(),
             self.output_iso_path.path.get(),
             self.input_mod_path.get_paths(),
