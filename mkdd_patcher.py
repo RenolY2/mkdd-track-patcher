@@ -3,6 +3,7 @@ import configparser
 import os
 import platform
 import signal
+import sys
 import textwrap
 
 import customtkinter
@@ -422,12 +423,17 @@ def get_config_path() -> str:
     return os.path.join(get_script_dir(), 'config.ini')
 
 
+def get_resources_path() -> str:
+    return os.path.join(get_script_dir(), 'lib' if getattr(sys, 'frozen', False) else '', 'src',
+                        'resources')
+
+
 def get_icon_path(name: str, resolution: int) -> str:
-    return os.path.join(get_script_dir(), 'src', 'resources', f'{name}{resolution}.png')
+    return os.path.join(get_resources_path(), f'{name}{resolution}.png')
 
 
 def get_ico_path(name: str) -> str:
-    return os.path.join(get_script_dir(), 'src', 'resources', f'{name}.ico')
+    return os.path.join(get_resources_path(), f'{name}.ico')
 
 
 def get_font_metrics() -> 'tuple[int, int]':
