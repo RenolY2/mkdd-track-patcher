@@ -311,7 +311,17 @@ class MessageBox(customtkinter.CTkToplevel):
         padding = int(font_width * 1.75)
         spacing = int(font_width * 0.75)
 
-        self.geometry(f'{font_width * 60}x{font_height * 13}')
+        dialog_width = font_width * 60
+        dialog_height = font_height * 13
+
+        if master is None:
+            x = int((self.winfo_screenwidth() - dialog_width) / 2)
+            y = int((self.winfo_screenheight() - dialog_height) / 2)
+        else:
+            x = int((master.winfo_width() - dialog_width) / 2 + master.winfo_x())
+            y = int((master.winfo_height() - dialog_height) / 2 + master.winfo_y())
+
+        self.geometry(f'{dialog_width}x{dialog_height}+{x}+{y}')
         self.minsize(font_width * 50, font_height * 12)
 
         self.grid_rowconfigure(0, weight=1)
