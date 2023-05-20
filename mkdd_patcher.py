@@ -313,7 +313,7 @@ class MessageBox(customtkinter.CTkToplevel):
         spacing = int(font_width * 0.75)
 
         dialog_width = font_width * 60
-        dialog_height = font_height * 13
+        dialog_height = font_height * max(13, int(len(text.split('\n')) * 1.75))
 
         if master is None:
             x = int((self.winfo_screenwidth() - dialog_width) / 2)
