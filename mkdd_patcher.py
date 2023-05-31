@@ -110,7 +110,7 @@ class MKDDPatcherApp(customtkinter.CTk):
             self.folder_mode_checkbox.select()
         tool_tip = '\n'.join(
             textwrap.wrap(
-                'In Folder Mode, users are able to select custom tracks / mods that aren\' '
+                'In Folder Mode, users are able to select custom tracks / mods that aren\'t '
                 'compressed in a ZIP archive and just stored in a folder. This allows for more '
                 'rapid mod development. When choosing files in the file browser, select the folder '
                 'that contains the folders of patches. Make sure that there are no unwanted '
