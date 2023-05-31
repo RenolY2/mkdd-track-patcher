@@ -13,7 +13,10 @@ class ZipLikeFolder(object):
     
     def path(self, subpath):
         return Path(os.path.join(self.filepath, subpath))
-
+    
+    def close(self):
+        pass
+    
     # zipfile's open does not seem to expect to be closed after use.
     # To mimic that, we write files into BytesIO and return that.
     def open(self, path):
@@ -181,7 +184,7 @@ class ZipToIsoPatcher(object):
         else:
             self.iso.change_or_add_file(destpath, file)
     
-    def copy_file_into_arc(self, srcpath, arc, destpath, missing_ok=True):
+    def copy_file_into_arc(self, srcpath, arc, destpath, missing_ok=True, add_new_file=False):
         try:
             src_file = self.zip.open(self.root+srcpath)
         except KeyError:
@@ -202,7 +205,10 @@ class ZipToIsoPatcher(object):
         else:
             return self.iso.read_file_data(path)
 
-
+    
+    def close(self):
+        self.zip.close()
+    
 if __name__ == "__main__":
     testzip = zipfile.ZipFile("C:\\Users\\User\\Documents\\GitHub\\mkdd-track-patcher\\test/ExtraCollision.zip")
     testfolder = ZipLikeFolder("C:\\Users\\User\\Documents\\GitHub\\mkdd-track-patcher\\test\\ExtraCollision")
