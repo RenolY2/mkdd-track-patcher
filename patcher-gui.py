@@ -240,7 +240,8 @@ class Application(tk.Frame):
             if patcher.is_code_patch():
                 log.info("Found code patch")
                 code_patches.append(mod)
-
+            patcher.close()
+            
         if len(code_patches) > 1:
             messagebox.showerror("Error",
                                  "More than one code patch selected:\n{}\nPlease only select one code patch.".format(
@@ -280,7 +281,8 @@ class Application(tk.Frame):
                         dol.seek(0)
                         patcher.change_file("sys/main.dol", dol)
                         log.info("Applied patch, there may be side effects.")
-
+            patcher.close()
+            
         # Go through each mod path
         for mod in self.input_mod_path.get_paths():
             # Get mod zip
@@ -289,6 +291,7 @@ class Application(tk.Frame):
             patcher.set_zip(mod)
 
             if patcher.is_code_patch():
+                patcher.close()
                 continue
             
             
@@ -322,8 +325,13 @@ class Application(tk.Frame):
 
                     for file in arcfiles:
                         #log.info("files/"+file)
-                        patcher.copy_file_into_arc("files/"+arc+"/"+file,
-                                    destination_arc, file, missing_ok=False)
+                        try:
+                            patcher.copy_file_into_arc("files/"+arc+"/"+file,
+                                        destination_arc, file, missing_ok=False)
+                        except FileNotFoundError:
+                            raise FileNotFoundError("Couldn't find '{0}' in '{1}'\n(Pay attention to arc root folder name!)".format(
+                            file, srcarcpath))
+                        
                         conflicts.add_conflict(arc+"/"+file, mod_name)
 
                     newarc = BytesIO()
@@ -537,7 +545,7 @@ class Application(tk.Frame):
             else:
                 log.warning("not a race track or mod, skipping...")
                 skipped += 1
-                
+            patcher.close()
         if at_least_1_track:
             patch_baa(iso)
             
