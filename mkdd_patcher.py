@@ -1,18 +1,19 @@
 #!/usr/bin/env python
 import configparser
-import importlib
 import os
 import platform
 import signal
+import sys
 import textwrap
 
 import customtkinter
 
 from PIL import Image, ImageTk
 
-from src import CTkToolTip
-
-patcher_gui = importlib.import_module('patcher-gui')
+from src import (
+    CTkToolTip,
+    patcher,
+)
 
 ICON_RESOLUTIONS = (16, 24, 32, 48, 64, 128, 256)
 
@@ -109,7 +110,7 @@ class MKDDPatcherApp(customtkinter.CTk):
             self.folder_mode_checkbox.select()
         tool_tip = '\n'.join(
             textwrap.wrap(
-                'In Folder Mode, users are able to select custom tracks / mods that aren\' '
+                'In Folder Mode, users are able to select custom tracks / mods that aren\'t '
                 'compressed in a ZIP archive and just stored in a folder. This allows for more '
                 'rapid mod development. When choosing files in the file browser, select the folder '
                 'that contains the folders of patches. Make sure that there are no unwanted '
@@ -234,8 +235,8 @@ class MKDDPatcherApp(customtkinter.CTk):
             MessageBox(self, title, icon, text, '', False, ('Close', )).wait_answer()
 
         try:
-            patcher_gui.PatcherHelper.patch(input_iso, output_iso, custom_tracks, message_callback,
-                                            prompt_callback, error_callback)
+            patcher.patch(input_iso, output_iso, custom_tracks, message_callback, prompt_callback,
+                          error_callback)
         except Exception as e:
             MessageBox(self, 'Exception', 'error', 'An exception occurred :', str(e), False,
                        ('Close', )).wait_answer()
@@ -312,7 +313,7 @@ class MessageBox(customtkinter.CTkToplevel):
         spacing = int(font_width * 0.75)
 
         dialog_width = font_width * 60
-        dialog_height = font_height * 13
+        dialog_height = font_height * max(13, int(len(text.split('\n')) * 1.75))
 
         if master is None:
             x = int((self.winfo_screenwidth() - dialog_width) / 2)
@@ -422,12 +423,17 @@ def get_config_path() -> str:
     return os.path.join(get_script_dir(), 'config.ini')
 
 
+def get_resources_path() -> str:
+    return os.path.join(get_script_dir(), 'lib' if getattr(sys, 'frozen', False) else '', 'src',
+                        'resources')
+
+
 def get_icon_path(name: str, resolution: int) -> str:
-    return os.path.join(get_script_dir(), 'src', 'resources', f'{name}{resolution}.png')
+    return os.path.join(get_resources_path(), f'{name}{resolution}.png')
 
 
 def get_ico_path(name: str) -> str:
-    return os.path.join(get_script_dir(), 'src', 'resources', f'{name}.ico')
+    return os.path.join(get_resources_path(), f'{name}.ico')
 
 
 def get_font_metrics() -> 'tuple[int, int]':
