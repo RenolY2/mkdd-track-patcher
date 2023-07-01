@@ -7,7 +7,13 @@ from tkinter import filedialog
 from tkinter import messagebox
 
 from src.patcher import *
-from src.configuration import read_config, make_default_config, save_cfg, update_config
+from src.configuration import (
+    read_config,
+    make_default_config,
+    populate_default_config,
+    save_cfg,
+    update_config,
+)
 
 logging.basicConfig(stream=sys.stdout, level=logging.INFO, format="> %(message)s")
 log = logging.getLogger(__name__)
@@ -141,6 +147,7 @@ class Application(tk.Frame):
 
         try:
             self.configuration = read_config()
+            populate_default_config(self.configuration)
             log.info("Config file loaded")
             update_config(self.configuration)
         except FileNotFoundError as e:
