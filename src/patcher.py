@@ -2,6 +2,7 @@ import os
 import json
 import struct
 import sys
+import textwrap
 import zipfile
 import pathlib
 import logging
@@ -42,6 +43,10 @@ def copy_if_not_exist(iso, newfile, oldfile):
     """
     if not iso.file_exists("files/"+newfile):
         iso.add_new_file("files/"+newfile, iso.read_file_data("files/"+oldfile))
+
+
+def wrap_text(text: str) -> str:
+    return '\n'.join(textwrap.wrap(text))
 
 
 def patch_musicid(arc, new_music):
@@ -211,6 +216,18 @@ def rename_archive(arc, newname, mp):
 
         file.name = newfilename
         arc.root.files[newfilename] = file
+
+
+SUPPORTED_CODE_PATCHES = tuple()  # No built-in support at the moment.
+
+
+def get_track_code_patches(config: configparser.ConfigParser) -> 'list[str]':
+    filtered_code_patches = []
+    code_patches = config["Config"].get("code_patches", '')
+    for code_patch in code_patches.replace('"', '').replace("'", '').split(','):
+        if code_patch := code_patch.strip().lower().replace(' ', '-'):
+            filtered_code_patches.append(code_patch)
+    return filtered_code_patches
 
 
 def patch(
@@ -401,6 +418,30 @@ def patch(
             at_least_1_track = True
             trackinfo = patcher.zip_open("trackinfo.ini")
             config.read_string(str(trackinfo.read(), encoding="utf-8"))
+
+            # Process code patches required by the custom track.
+            code_patches = get_track_code_patches(config)
+            unsupported_code_patches = [
+                code_patch for code_patch in code_patches
+                if code_patch not in SUPPORTED_CODE_PATCHES
+            ]
+            if unsupported_code_patches:
+                unsupported_code_patches = ''.join(f'{" " * 6} • {code_patch}\n'
+                                                   for code_patch in unsupported_code_patches)
+                do_continue = prompt_callback(
+                    "Warning", "warning",
+                    f"No built-in support for code patches:\n\n{unsupported_code_patches}\n" +
+                    wrap_text("These code patches are requirements for "
+                              f"\"{mod_name}\". The code patches need to be applied as separate "
+                              "mods, or else the custom track will not function as expected.") +
+                    "\n\n"
+                    "Do you want to continue?",
+                    ("No", "Continue; I'll make sure patches are applied as separate mods"))
+
+                if not do_continue:
+                    return
+
+                log.warning("Continuing without built-in support for code patches.")
 
             #use_extended_music = config.getboolean("Config", "extended_music_slots")
             replace = config["Config"]["replaces"].strip()

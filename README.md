@@ -73,6 +73,7 @@ The trackinfo file needs to contain the following data
     replaces = Replaced TrackName
     replaces_music = Replaced Track Music Name
     main_language = Language
+    code_patches = Comma-separated List
 
 
 with author and trackname being the name of the author and the name of the custom track respectively. \
@@ -112,6 +113,10 @@ Italian, etc.
 
 The following languages are supported: \
 English, Japanese, German, Italian, French, Spanish
+
+`code_patches` is an optional comma-separated list of code patches that are required by the custom
+track (e.g. `type-specific-item-boxes`, `sectioned-courses`, or `cpu-only-dead-zones`). This list is
+informative, and will tell the Patcher that certain code patches are required.
 
 # How to create a custom mod zip
 This guide is for when you want to make custom drivers, custom karts or modifications to any of the
