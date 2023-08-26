@@ -18,13 +18,7 @@ def read_config():
 def make_default_config():
     cfg = configparser.ConfigParser()
 
-    cfg["default paths"] = {
-        "iso": "",
-        "mods": ""
-    }
-    cfg["options"] = {
-        "folder_mode": False
-    }
+    populate_default_config(cfg)
 
     with open(CONFIG_NAME, "w") as f:
         cfg.write(f)
@@ -39,6 +33,19 @@ def update_config(cfg):
         }
 
         save_cfg(cfg)
+
+
+def populate_default_config(cfg):
+    if 'default paths' not in cfg:
+        cfg["default paths"] = {
+            "iso": "",
+            "mods": "",
+        }
+
+    if 'options' not in cfg:
+        cfg["options"] = {
+            "folder_mode": False,
+        }
 
 
 def save_cfg(cfg):
