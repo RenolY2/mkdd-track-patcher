@@ -149,6 +149,26 @@ def patch_minimap_dol(dol, track, region, minimap_setting, intended_track=True):
             "Wrong Address, orientation value in DOL isn't in 0-3 range: {0}. Maybe you are using"
             " a dol from a different game version?".format(orientation_val))
 
+    if track == 'Pipe Plaza':
+        # Pipe Plaza and Tilt-a-Kart happen to share the same coordinates array, difficulting the
+        # use of custom battle stages in these slots if they don't have the same minimap
+        # coordinates. To work around this limitation, unused floating values will be repurposed
+        # for Pipe Plaza.
+        corner1x, corner1z, corner2x, corner2z, orientation = addresses['Pipe Plaza (2)']
+
+        # The four offsets to the coordinates array can be seen in a number of `lfs` instructions
+        # near the `li` instruction that defines the orientation. These instructions need to be
+        # tweaked to point to the unused array. The base offset is hardcoded; it's the first offset
+        # seen in the `default:` case in the `switch` in `Race2D::__ct()`.
+        assert region in ('US', 'PAL', 'JP')
+        base_offset = 0x9A70
+        for i, offset_from_li_instruction_address in enumerate((24, 16, 4, -4)):
+            lfs_instruction_address = int(orientation, 16) + offset_from_li_instruction_address
+            dol.seek(lfs_instruction_address)
+            lfs_instruction = read_uint32(dol)
+            lfs_instruction = (lfs_instruction & 0xFFFF0000) | (base_offset - i * 4)
+            write_uint32_offset(dol, lfs_instruction, lfs_instruction_address)
+
     dol.seek(int(orientation, 16))
     write_load_immediate_r0(dol, minimap_setting["Orientation"])
     dol.seek(int(corner1x, 16))
