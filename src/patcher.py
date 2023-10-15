@@ -280,6 +280,8 @@ def patch(
 
     code_patches = []
 
+    supported_code_patches = set(SUPPORTED_CODE_PATCHES)
+
     for mod in custom_tracks:
         log.info(mod)
         patcher.set_zip(mod)
@@ -287,6 +289,12 @@ def patch(
         if patcher.is_code_patch():
             log.info("Found code patch")
             code_patches.append(mod)
+
+            config = configparser.ConfigParser()
+            codeinfo = patcher.zip_open("codeinfo.ini")
+            config.read_string(str(codeinfo.read(), encoding="utf-8"))
+            supported_code_patches |= set(get_track_code_patches(config))
+
         patcher.close()
 
     if len(code_patches) > 1:
@@ -423,7 +431,7 @@ def patch(
             code_patches = get_track_code_patches(config)
             unsupported_code_patches = [
                 code_patch for code_patch in code_patches
-                if code_patch not in SUPPORTED_CODE_PATCHES
+                if code_patch not in supported_code_patches
             ]
             if unsupported_code_patches:
                 unsupported_code_patches = ''.join(f'{" " * 6} • {code_patch}\n'
