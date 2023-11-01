@@ -128,7 +128,7 @@ def patch_minimap_dol(dol, track, region, minimap_setting, intended_track=True):
     Args:
         dol (file): Minimap DOL file
         track (str): Track name
-        region (str): Game region (US/PAL/JP)
+        region (str): Game region (US/PAL/JP/US_DEBUG)
         minimap_setting (dict): Minimap settings
         intended_track (bool, optional): Run extra operations if False. Defaults to True.
     """
@@ -160,8 +160,8 @@ def patch_minimap_dol(dol, track, region, minimap_setting, intended_track=True):
         # near the `li` instruction that defines the orientation. These instructions need to be
         # tweaked to point to the unused array. The base offset is hardcoded; it's the first offset
         # seen in the `default:` case in the `switch` in `Race2D::__ct()`.
-        assert region in ('US', 'PAL', 'JP')
-        base_offset = 0x9A70
+        assert region in ('US', 'PAL', 'JP', 'US_DEBUG')
+        base_offset = 0x9A70 if region != 'US_DEBUG' else 0xA164
         for i, offset_from_li_instruction_address in enumerate((24, 16, 4, -4)):
             lfs_instruction_address = int(orientation, 16) + offset_from_li_instruction_address
             dol.seek(lfs_instruction_address)
@@ -293,6 +293,15 @@ def patch(
 
     # Create ZipToIsoPatcher object
     patcher = ZipToIsoPatcher(None, iso)
+
+    # Check whether it's the debug build.
+    if region == "US":
+        boot = patcher.get_iso_file("sys/boot.bin")
+        boot.seek(0x23)
+        DEBUG_BUILD_DATE = b'2004.07.05'
+        data = boot.read(len(DEBUG_BUILD_DATE))
+        if data == DEBUG_BUILD_DATE:
+            region = "US_DEBUG"
 
     at_least_1_track = False
 
