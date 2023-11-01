@@ -183,30 +183,32 @@ def patch_minimap_dol(dol, track, region, minimap_setting, intended_track=True):
     if not intended_track:
         minimap_transforms = addresses_json[region+"_MinimapLocation"]
         if track in minimap_transforms:
+            # The specific minimap transforms that the game applies to the replacee slot will be
+            # neutralized by turning the calls to `Race2DParam::setX()`, `Race2DParam::setY()`, and
+            # `Race2DParam::setS()` into no-ops.
+
+            lfs_addresses = []
+
             if len(minimap_transforms[track]) == 9:
                 p1_offx, p1_offy, p1_scale = minimap_transforms[track][0:3]
                 p2_offx, p2_offy, p2_scale = minimap_transforms[track][3:6]
                 p3_offx, p3_offy, p3_scale = minimap_transforms[track][6:9]
             else:
+                # Only Peach Beach has these extra offsets.
                 p1_offx, p1_offx2, p1_offy, p1_scale = minimap_transforms[track][0:4]
                 p2_offx, p2_offx2, p2_offy, p2_scale = minimap_transforms[track][4:8]
                 p3_offx, p3_offx2, p3_offy, p3_scale = minimap_transforms[track][8:12]
 
-                write_uint32_offset(dol, 0xC02298E4, int(p1_offx2, 16))
-                write_uint32_offset(dol, 0xC02298EC, int(p2_offx2, 16))
-                write_uint32_offset(dol, 0xC0229838, int(p3_offx2, 16))
+                lfs_addresses.extend([p1_offx2, p2_offx2, p3_offx2])
 
-            write_uint32_offset(dol, 0xC02298E4, int(p1_offx, 16))
-            write_uint32_offset(dol, 0xC02298EC, int(p2_offx, 16))
-            write_uint32_offset(dol, 0xC0229838, int(p3_offx, 16))
+            lfs_addresses.extend([
+                p1_offx, p2_offx, p3_offx, p1_offy, p2_offy, p3_offy, p1_scale, p2_scale, p3_scale
+            ])
 
-            write_uint32_offset(dol, 0xC02298E8, int(p1_offy, 16))
-            write_uint32_offset(dol, 0xC0229838, int(p2_offy, 16))
-            write_uint32_offset(dol, 0xC0229838, int(p3_offy, 16))
-
-            write_uint32_offset(dol, 0xC02298A8, int(p1_scale, 16))
-            write_uint32_offset(dol, 0xC02298B4, int(p2_scale, 16))
-            write_uint32_offset(dol, 0xC022983C, int(p3_scale, 16))
+            lfs_addresses = [int(addr, 16) for addr in lfs_addresses]
+            for lfs_address in lfs_addresses:
+                bl_address = lfs_address + 4 * 2  # `bl` instruction is two instructions below.
+                write_uint32_offset(dol, 0x60000000, bl_address)
 
 
 def rename_archive(arc, newname, mp):
