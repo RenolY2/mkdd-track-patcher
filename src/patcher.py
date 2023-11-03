@@ -128,7 +128,7 @@ def patch_minimap_dol(dol, track, region, minimap_setting, intended_track=True):
     Args:
         dol (file): Minimap DOL file
         track (str): Track name
-        region (str): Game region (US/PAL/JP)
+        region (str): Game region (US/PAL/JP/US_DEBUG)
         minimap_setting (dict): Minimap settings
         intended_track (bool, optional): Run extra operations if False. Defaults to True.
     """
@@ -160,8 +160,8 @@ def patch_minimap_dol(dol, track, region, minimap_setting, intended_track=True):
         # near the `li` instruction that defines the orientation. These instructions need to be
         # tweaked to point to the unused array. The base offset is hardcoded; it's the first offset
         # seen in the `default:` case in the `switch` in `Race2D::__ct()`.
-        assert region in ('US', 'PAL', 'JP')
-        base_offset = 0x9A70
+        assert region in ('US', 'PAL', 'JP', 'US_DEBUG')
+        base_offset = 0x9A70 if region != 'US_DEBUG' else 0xA164
         for i, offset_from_li_instruction_address in enumerate((24, 16, 4, -4)):
             lfs_instruction_address = int(orientation, 16) + offset_from_li_instruction_address
             dol.seek(lfs_instruction_address)
@@ -183,30 +183,32 @@ def patch_minimap_dol(dol, track, region, minimap_setting, intended_track=True):
     if not intended_track:
         minimap_transforms = addresses_json[region+"_MinimapLocation"]
         if track in minimap_transforms:
+            # The specific minimap transforms that the game applies to the replacee slot will be
+            # neutralized by turning the calls to `Race2DParam::setX()`, `Race2DParam::setY()`, and
+            # `Race2DParam::setS()` into no-ops.
+
+            lfs_addresses = []
+
             if len(minimap_transforms[track]) == 9:
                 p1_offx, p1_offy, p1_scale = minimap_transforms[track][0:3]
                 p2_offx, p2_offy, p2_scale = minimap_transforms[track][3:6]
                 p3_offx, p3_offy, p3_scale = minimap_transforms[track][6:9]
             else:
+                # Only Peach Beach has these extra offsets.
                 p1_offx, p1_offx2, p1_offy, p1_scale = minimap_transforms[track][0:4]
                 p2_offx, p2_offx2, p2_offy, p2_scale = minimap_transforms[track][4:8]
                 p3_offx, p3_offx2, p3_offy, p3_scale = minimap_transforms[track][8:12]
 
-                write_uint32_offset(dol, 0xC02298E4, int(p1_offx2, 16))
-                write_uint32_offset(dol, 0xC02298EC, int(p2_offx2, 16))
-                write_uint32_offset(dol, 0xC0229838, int(p3_offx2, 16))
+                lfs_addresses.extend([p1_offx2, p2_offx2, p3_offx2])
 
-            write_uint32_offset(dol, 0xC02298E4, int(p1_offx, 16))
-            write_uint32_offset(dol, 0xC02298EC, int(p2_offx, 16))
-            write_uint32_offset(dol, 0xC0229838, int(p3_offx, 16))
+            lfs_addresses.extend([
+                p1_offx, p2_offx, p3_offx, p1_offy, p2_offy, p3_offy, p1_scale, p2_scale, p3_scale
+            ])
 
-            write_uint32_offset(dol, 0xC02298E8, int(p1_offy, 16))
-            write_uint32_offset(dol, 0xC0229838, int(p2_offy, 16))
-            write_uint32_offset(dol, 0xC0229838, int(p3_offy, 16))
-
-            write_uint32_offset(dol, 0xC02298A8, int(p1_scale, 16))
-            write_uint32_offset(dol, 0xC02298B4, int(p2_scale, 16))
-            write_uint32_offset(dol, 0xC022983C, int(p3_scale, 16))
+            lfs_addresses = [int(addr, 16) for addr in lfs_addresses]
+            for lfs_address in lfs_addresses:
+                bl_address = lfs_address + 4 * 2  # `bl` instruction is two instructions below.
+                write_uint32_offset(dol, 0x60000000, bl_address)
 
 
 def rename_archive(arc, newname, mp):
@@ -291,6 +293,15 @@ def patch(
 
     # Create ZipToIsoPatcher object
     patcher = ZipToIsoPatcher(None, iso)
+
+    # Check whether it's the debug build.
+    if region == "US":
+        boot = patcher.get_iso_file("sys/boot.bin")
+        boot.seek(0x23)
+        DEBUG_BUILD_DATE = b'2004.07.05'
+        data = boot.read(len(DEBUG_BUILD_DATE))
+        if data == DEBUG_BUILD_DATE:
+            region = "US_DEBUG"
 
     at_least_1_track = False
 
