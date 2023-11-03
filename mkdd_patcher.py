@@ -225,21 +225,39 @@ class MKDDPatcherApp(customtkinter.CTk):
         custom_tracks = self.custom_tracks_box.get('0.0', customtkinter.END).splitlines()
         custom_tracks = tuple(path.strip() for path in custom_tracks if path.strip())
 
+        progress_dialog = ProgressDialog(self, 'Patching...')
+
         def message_callback(title: str, icon: str, text: str):
+            progress_dialog.close()
             MessageBox(self, title, icon, text, '', False, ('Close', )).wait_answer()
 
         def prompt_callback(title: str, icon: str, text: str, buttons_labels: 'tuple[str]') -> bool:
             return MessageBox(self, title, icon, text, '', True, buttons_labels).wait_answer()
 
         def error_callback(title: str, icon: str, text: str):
+            progress_dialog.close()
             MessageBox(self, title, icon, text, '', False, ('Close', )).wait_answer()
+
+        self._set_patch_button_enabled(False)
+        self.update()  # Force update, as the patching is done synchronously right away.
 
         try:
             patcher.patch(input_iso, output_iso, custom_tracks, message_callback, prompt_callback,
                           error_callback)
+            progress_dialog.close()
         except Exception as e:
+            progress_dialog.close()
             MessageBox(self, 'Exception', 'error', 'An exception occurred :', str(e), False,
                        ('Close', )).wait_answer()
+        finally:
+            self._set_patch_button_enabled(True)
+
+    def _set_patch_button_enabled(self, enabled: bool):
+        if enabled:
+            self.patch_button.configure(
+                state='normal', fg_color=customtkinter.ThemeManager.theme['CTkButton']['fg_color'])
+        else:
+            self.patch_button.configure(state='disabled', fg_color='#444')
 
     def _sync_form(self):
         self._last_input_iso = self.input_iso_entry.get()
@@ -250,11 +268,7 @@ class MKDDPatcherApp(customtkinter.CTk):
         output_iso = self._last_output_iso.strip()
         custom_tracks = tuple(p.strip() for p in self._last_custom_tracks.splitlines() if p.strip())
 
-        if input_iso and output_iso and custom_tracks:
-            self.patch_button.configure(
-                state='normal', fg_color=customtkinter.ThemeManager.theme['CTkButton']['fg_color'])
-        else:
-            self.patch_button.configure(state='disabled', fg_color='#444')
+        self._set_patch_button_enabled(input_iso and output_iso and custom_tracks)
 
         if self.folder_mode_checkbox.get():
             tool_tip = 'Select the directory that contains the custom track or mod.'
@@ -298,6 +312,50 @@ class MKDDPatcherApp(customtkinter.CTk):
 
         with open(get_config_path(), 'w', encoding='utf-8') as f:
             config.write(f)
+
+
+class ProgressDialog(customtkinter.CTkToplevel):
+
+    def __init__(self, master, title: str, icon: str = 'logo'):
+        super().__init__(master=master)
+
+        font_width, font_height = get_font_metrics()
+        dialog_width = font_width * 40
+        dialog_height = font_height * 5
+
+        if master is None:
+            x = int((self.winfo_screenwidth() - dialog_width) / 2)
+            y = int((self.winfo_screenheight() - dialog_height) / 2)
+        else:
+            x = int((master.winfo_width() - dialog_width) / 2 + master.winfo_x())
+            y = int((master.winfo_height() - dialog_height) / 2 + master.winfo_y())
+
+        self.geometry(f'{dialog_width}x{dialog_height}+{x}+{y}')
+        self.minsize(dialog_width, dialog_height)
+        self.maxsize(dialog_width, dialog_height)
+
+        self.grid_rowconfigure(0, weight=1)
+        self.grid_columnconfigure(0, weight=1)
+
+        label = customtkinter.CTkLabel(master=self, text='Please wait...')
+        label.grid(row=0, column=0)
+
+        self.title(title)
+        if platform.system() == 'Windows':
+            self.iconbitmap(get_ico_path(icon))
+            # For some reason, on Windows only, customtkinter.CTkToplevel.__init__() sets an icon
+            # change with a 200ms delay, which overrides our icon. To circumvent it, the method will
+            # be monkey-patched so that it has no effect in future calls.
+            self.iconbitmap = lambda _path: None
+        else:
+            logo = ImageTk.PhotoImage(file=get_icon_path(icon, ICON_RESOLUTIONS[-1]))
+            self.iconphoto(False, logo)
+        self.lift()
+        self.attributes('-topmost', True)
+        self.protocol('WM_DELETE_WINDOW', lambda: None)
+
+    def close(self):
+        self.destroy()
 
 
 class MessageBox(customtkinter.CTkToplevel):
