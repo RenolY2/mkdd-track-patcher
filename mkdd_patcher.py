@@ -5,6 +5,8 @@ import platform
 import signal
 import sys
 import textwrap
+import tkinter
+import webbrowser
 
 import customtkinter
 
@@ -46,6 +48,10 @@ class MKDDPatcherApp(customtkinter.CTk):
         else:
             logo = ImageTk.PhotoImage(file=get_icon_path('logo', ICON_RESOLUTIONS[-1]))
             self.iconphoto(False, logo)
+
+        menu = tkinter.Menu(self)
+        menu.add_command(label='About', command=self._show_about_dialog)
+        self.config(menu=menu)
 
         font_width, font_height = get_font_metrics()
         padding = int(font_width * 1.75)
@@ -313,6 +319,17 @@ class MKDDPatcherApp(customtkinter.CTk):
         with open(get_config_path(), 'w', encoding='utf-8') as f:
             config.write(f)
 
+    def _show_about_dialog(self):
+        text = textwrap.dedent(f'MKDD Patcher {patcher.__version__} by Yoshi2')
+        URL = 'https://github.com/RenolY2/mkdd-track-patcher'
+
+        MessageBox(
+            self, 'About MKDD Patcher', 'logo', text, URL, False, tuple(), {
+                'Updates': lambda: webbrowser.open(f'{URL}/releases'),
+                'Bug Reports': lambda: webbrowser.open(f'{URL}/issues'),
+                'Close': None,
+            }).wait_answer()
+
 
 class ProgressDialog(customtkinter.CTkToplevel):
 
@@ -360,8 +377,17 @@ class ProgressDialog(customtkinter.CTkToplevel):
 
 class MessageBox(customtkinter.CTkToplevel):
 
-    def __init__(self, master, title: str, icon: str, text: str, fixed_width_text: str,
-                 prompter: bool, buttons_labels: 'tuple[str]'):
+    def __init__(
+        self,
+        master,
+        title: str,
+        icon: str,
+        text: str,
+        fixed_width_text: str,
+        prompter: bool,
+        buttons_labels: 'tuple[str]',
+        custom_buttons: dict = None,
+    ):
         super().__init__(master=master)
 
         self._accepted = False
@@ -419,7 +445,16 @@ class MessageBox(customtkinter.CTkToplevel):
                            pady=(padding, padding),
                            sticky='nse')
 
-        if prompter:
+        if custom_buttons is not None:
+            for i, (button_label, button_command) in enumerate(custom_buttons.items()):
+                if button_command is None:
+                    button_command = self.close
+                last = i + 1 == len(custom_buttons)
+                button = customtkinter.CTkButton(master=buttons_frame,
+                                                 text=button_label,
+                                                 command=button_command)
+                button.grid(row=0, column=i, padx=(0, 0 if last else spacing), pady=0, sticky='nse')
+        elif prompter:
             buttons_labels = buttons_labels or ('No', 'Yes')
             no_button = customtkinter.CTkButton(master=buttons_frame,
                                                 text=buttons_labels[0],
