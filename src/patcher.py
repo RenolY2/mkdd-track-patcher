@@ -19,6 +19,8 @@ from .rarc import Archive, write_pad32, write_uint32
 from .track_mapping import music_mapping, arc_mapping, file_mapping, bsft, battle_mapping
 from .pybinpatch import DiffPatch, WrongSourceFile
 
+__version__ = '2.0.0'
+
 logging.basicConfig(stream=sys.stdout, level=logging.INFO, format="> %(message)s")
 log = logging.getLogger(__name__)
 
@@ -29,8 +31,6 @@ GAMEID_TO_REGION = {
 }
 
 LANGUAGES = ["English", "Japanese", "German", "Italian", "French", "Spanish"]
-
-VERSION = "1.0"
 
 
 def copy_if_not_exist(iso, newfile, oldfile):

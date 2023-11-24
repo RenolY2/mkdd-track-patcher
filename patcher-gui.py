@@ -1,3 +1,4 @@
+import pathlib
 import signal
 import sys
 import logging
@@ -6,7 +7,7 @@ import os
 from tkinter import filedialog
 from tkinter import messagebox
 
-from src.patcher import *
+from src import patcher
 from src.configuration import (
     read_config,
     make_default_config,
@@ -208,7 +209,7 @@ class Application(tk.Frame):
             _ = icon
             messagebox.showerror(title, text)
 
-        return patch(
+        return patcher.patch(
             self.input_iso_path.path.get(),
             self.output_iso_path.path.get(),
             self.input_mod_path.get_paths(),
@@ -237,13 +238,13 @@ if __name__ == "__main__":
     root = tk.Tk()
     root.geometry("350x150")
     def show_about():
-        #about_text = "MKDD Patcher {0} by Yoshi2".format(VERSION)
+        #about_text = f"MKDD Patcher {patcher.__version__} by Yoshi2"
         #about_text += "\nNew releases: https://github.com/RenolY2/mkdd-track-patcher/releases"
         #about_text += "\nReport bugs at: https://github.com/RenolY2/mkdd-track-patcher/issues"
         #messagebox.showinfo("About", about_text)
         about = tk.Toplevel(root)
         text = tk.Text(about, height=4)
-        text.insert(1.0, "MKDD Patcher {0} by Yoshi2\n".format(VERSION))
+        text.insert(1.0, f"MKDD Patcher {patcher.__version__} by Yoshi2\n")
         text.insert(2.0, "New releases: https://github.com/RenolY2/mkdd-track-patcher/releases\n")
         text.insert(3.0, "Post suggestions or bug reports at: https://github.com/RenolY2/mkdd-track-patcher/issues")
         text.pack()
