@@ -40,7 +40,7 @@ class MKDDPatcherApp(customtkinter.CTk):
             self._last_custom_tracks = config['paths'].get('custom_tracks', '')
             self._last_custom_tracks_picked = config['paths'].get('custom_tracks_picked', '')
 
-        self.title('MKDD Patcher')
+        self.title(f'MKDD Patcher {patcher.__version__}')
         if platform.system() == 'Windows':
             self.iconbitmap(get_ico_path('logo'))
         else:

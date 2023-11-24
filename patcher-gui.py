@@ -250,7 +250,7 @@ if __name__ == "__main__":
         text.pack()
         text.configure(state="disabled")
 
-    root.title("MKDD Patcher")
+    root.title(f"MKDD Patcher {patcher.__version__}")
     try:
         root.iconbitmap(str(pathlib.Path(__file__).parent.absolute()) + '/resources/icon.ico')
     except:
