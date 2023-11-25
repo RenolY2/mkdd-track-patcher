@@ -1,9 +1,18 @@
 import os
+import re
 import shutil
 
 from cx_Freeze import setup, Executable
 
-version = "2.0.0"
+# To avoid importing the module, simply parse the file to find the version variable in it.
+with open('src/patcher.py', 'r', encoding='utf-8') as f:
+    data = f.read()
+for line in data.splitlines():
+    if '__version__' in line:
+        version = re.search(r"'(.+)'", line).group(1)
+        break
+else:
+    raise RuntimeError('Unable to parse product version.')
 
 build_dirpath = 'build'
 bundle_dirname = f'mkdd-patcher-{version}'
