@@ -3,6 +3,7 @@ import configparser
 import os
 import platform
 import signal
+import subprocess
 import sys
 import textwrap
 import webbrowser
@@ -12,6 +13,7 @@ import customtkinter
 from PIL import Image, ImageTk
 
 from src import (
+    CTkDropdownMenu,
     CTkMenuBar,
     CTkToolTip,
     patcher,
@@ -70,6 +72,19 @@ class MKDDPatcherApp(customtkinter.CTk):
             pady=font_height // 3,
         )
         menu_bar.grid(row=0, column=0, columnspan=2, sticky='nsew')
+        file_button = menu_bar.add_cascade('File')
+        file_menu = CTkDropdownMenu.CustomDropdownMenu(widget=file_button,
+                                                       height=int(font_height * 1.5),
+                                                       corner_radius=0,
+                                                       border_color='#111111',
+                                                       separator_color='#1C1C1C',
+                                                       hover_color='#323232',
+                                                       font=None,
+                                                       padx=0,
+                                                       pady=0)
+        file_menu.add_option('Open Configuration Directory...', command=self._open_config_directory)
+        file_menu.add_separator()
+        file_menu.add_option('Quit', command=self.close)
         about_button = menu_bar.add_cascade('About')
         about_button.configure(command=self._show_about_dialog)
 
@@ -325,6 +340,14 @@ class MKDDPatcherApp(customtkinter.CTk):
 
         with open(get_config_path(), 'w', encoding='utf-8') as f:
             config.write(f)
+
+    def _open_config_directory(self):
+        config_dir = os.path.dirname(get_config_path())
+        if platform.system() == 'Windows':
+            os.startfile(config_dir)  # pylint: disable=no-member
+        else:
+            subprocess.check_call(
+                ('open' if platform.system() == 'Darwin' else 'xdg-open', config_dir))
 
     def _show_about_dialog(self):
         text = textwrap.dedent(f'MKDD Patcher {patcher.__version__} by Yoshi2')
