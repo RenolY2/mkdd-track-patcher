@@ -5,7 +5,6 @@ import platform
 import signal
 import sys
 import textwrap
-import tkinter
 import webbrowser
 
 import customtkinter
@@ -13,6 +12,7 @@ import customtkinter
 from PIL import Image, ImageTk
 
 from src import (
+    CTkMenuBar,
     CTkToolTip,
     patcher,
 )
@@ -49,10 +49,6 @@ class MKDDPatcherApp(customtkinter.CTk):
             logo = ImageTk.PhotoImage(file=get_icon_path('logo', ICON_RESOLUTIONS[-1]))
             self.iconphoto(False, logo)
 
-        menu = tkinter.Menu(self)
-        menu.add_command(label='About', command=self._show_about_dialog)
-        self.config(menu=menu)
-
         font_width, font_height = get_font_metrics()
         padding = int(font_width * 1.75)
         spacing = int(font_width * 0.75)
@@ -61,15 +57,26 @@ class MKDDPatcherApp(customtkinter.CTk):
             self.geometry(config['geometry']['window'])
         else:
             self.geometry(f'{font_width * 100}x{font_height * 20}')
-        self.minsize(font_width * 50, font_height * 12)
+        self.minsize(font_width * 50, font_height * 15)
 
-        self.grid_rowconfigure(0, weight=1)
+        self.grid_rowconfigure(1, weight=1)
         self.grid_columnconfigure((0, 1), weight=1)
+
+        menu_bar = CTkMenuBar.CTkMenuBar(
+            master=self,
+            bg_color='#070707',
+            height=int(font_height * 1.5),
+            padx=font_height // 2,
+            pady=font_height // 3,
+        )
+        menu_bar.grid(row=0, column=0, columnspan=2, sticky='nsew')
+        about_button = menu_bar.add_cascade('About')
+        about_button.configure(command=self._show_about_dialog)
 
         main_frame = customtkinter.CTkFrame(master=self, fg_color='transparent')
         main_frame.grid_rowconfigure(2, weight=1)
         main_frame.grid_columnconfigure(1, weight=1)
-        main_frame.grid(row=0,
+        main_frame.grid(row=1,
                         column=0,
                         columnspan=2,
                         padx=padding,
@@ -107,7 +114,7 @@ class MKDDPatcherApp(customtkinter.CTk):
         self.folder_mode_checkbox = customtkinter.CTkCheckBox(master=self,
                                                               text='Folder Mode',
                                                               command=self._sync_form)
-        self.folder_mode_checkbox.grid(row=1,
+        self.folder_mode_checkbox.grid(row=2,
                                        column=0,
                                        padx=padding,
                                        pady=(padding, padding),
@@ -127,7 +134,7 @@ class MKDDPatcherApp(customtkinter.CTk):
                               justify='left')
 
         self.patch_button = customtkinter.CTkButton(master=self, text='Patch', command=self.patch)
-        self.patch_button.grid(row=1, column=1, padx=padding, pady=(padding, padding), sticky='ns')
+        self.patch_button.grid(row=2, column=1, padx=padding, pady=(padding, padding), sticky='ns')
 
         self.input_iso_entry.insert(0, self._last_input_iso)
         self.output_iso_entry.insert(0, self._last_output_iso)
