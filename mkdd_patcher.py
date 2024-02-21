@@ -232,13 +232,24 @@ class MKDDPatcherApp(customtkinter.CTk):
                 return
             custom_tracks = '\n'.join(custom_tracks)
         else:
-            custom_tracks = customtkinter.filedialog.askdirectory(
+            tmp = customtkinter.filedialog.askdirectory(
                 parent=self,
                 title='Select Custom Tracks / Mods',
                 initialdir=initialdir,
                 mustexist=True)
+            if not tmp: 
+                return 
+            
+            custom_tracks = []
+            for name in os.listdir(tmp):
+                fullpath = os.path.join(tmp, name)
+                if os.path.isdir(fullpath):
+                    custom_tracks.append(fullpath)
+            
             if not custom_tracks:
                 return
+            
+            custom_tracks = "\n".join(custom_tracks)
 
         self._last_output_iso_picked = custom_tracks
 
