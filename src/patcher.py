@@ -690,7 +690,7 @@ def patch(
     try:
         iso.export_disc_to_iso_with_changed_files(output_iso_path)
     except Exception as error:
-        error_callback("Error while writing ISO: {0}".format(str(error)))
+        error_callback("Error", "error", "Error while writing ISO: {0}".format(str(error)))
         raise
     else:
         if skipped == 0:
