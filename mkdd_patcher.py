@@ -237,18 +237,18 @@ class MKDDPatcherApp(customtkinter.CTk):
                 title='Select Custom Tracks / Mods',
                 initialdir=initialdir,
                 mustexist=True)
-            if not tmp: 
-                return 
-            
+            if not tmp:
+                return
+
             custom_tracks = []
             for name in os.listdir(tmp):
                 fullpath = os.path.join(tmp, name)
                 if os.path.isdir(fullpath):
                     custom_tracks.append(fullpath)
-            
+
             if not custom_tracks:
                 return
-            
+
             custom_tracks = "\n".join(custom_tracks)
 
         self._last_output_iso_picked = custom_tracks
@@ -437,8 +437,8 @@ class MessageBox(customtkinter.CTkToplevel):
         padding = int(font_width * 1.75)
         spacing = int(font_width * 0.75)
 
-        dialog_width = font_width * 60
-        dialog_height = font_height * max(13, int(len(text.split('\n')) * 1.75))
+        dialog_width = font_width * 70
+        dialog_height = font_height * max(14, guess_line_count(text))
 
         if master is None:
             x = int((self.winfo_screenwidth() - dialog_width) / 2)
@@ -471,6 +471,7 @@ class MessageBox(customtkinter.CTkToplevel):
 
         label = customtkinter.CTkLabel(master=main_frame, text=text, justify='left', anchor='nw')
         label.grid(row=0, column=0, padx=0, pady=0, sticky='nwe')
+        label.bind('<Configure>', lambda event: label.configure(wraplength=event.width))
 
         if fixed_width_text:
             fixed_width_box = customtkinter.CTkTextbox(master=main_frame, wrap='none')
@@ -547,6 +548,13 @@ def get_next_icon_resolution(resolution: int) -> int:
         if res >= resolution:
             return res
     return ICON_RESOLUTIONS[-1]
+
+
+def guess_line_count(text: str) -> int:
+    line_count = 0
+    for paragraph in text.split('\n\n'):
+        line_count += len(textwrap.wrap(paragraph.replace('\n', ' '))) + 3
+    return line_count
 
 
 def get_script_dir() -> str:
