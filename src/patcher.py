@@ -2,7 +2,6 @@ import os
 import json
 import struct
 import sys
-import textwrap
 import zipfile
 import pathlib
 import logging
@@ -43,10 +42,6 @@ def copy_if_not_exist(iso, newfile, oldfile):
     """
     if not iso.file_exists("files/"+newfile):
         iso.add_new_file("files/"+newfile, iso.read_file_data("files/"+oldfile))
-
-
-def wrap_text(text: str) -> str:
-    return '\n'.join(textwrap.wrap(text))
 
 
 def patch_musicid(arc, new_music):
@@ -469,10 +464,10 @@ def patch(
                                                    for code_patch in unsupported_code_patches)
                 do_continue = prompt_callback(
                     "Warning", "warning",
-                    f"No built-in support for code patches:\n\n{unsupported_code_patches}\n" +
-                    wrap_text("These code patches are requirements for "
-                              f"\"{mod_name}\". The code patches need to be applied as separate "
-                              "mods, or else the custom track will not function as expected.") +
+                    f"No built-in support for code patches:\n\n{unsupported_code_patches}\n"
+                    f"These code patches are requirements for \"{mod_name}\". The code patches "
+                    "need to be applied as separate mods, or else the custom track will not "
+                    "function as expected."
                     "\n\n"
                     "Do you want to continue?",
                     ("No", "Continue; I'll make sure patches are applied as separate mods"))
