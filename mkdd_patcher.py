@@ -6,6 +6,7 @@ import signal
 import subprocess
 import sys
 import textwrap
+import traceback
 import webbrowser
 
 import customtkinter
@@ -284,10 +285,10 @@ class MKDDPatcherApp(customtkinter.CTk):
             patcher.patch(input_iso, output_iso, custom_tracks, message_callback, prompt_callback,
                           error_callback)
             progress_dialog.close()
-        except Exception as e:
+        except Exception:
             progress_dialog.close()
-            MessageBox(self, 'Exception', 'error', 'An exception occurred :', str(e), False,
-                       ('Close', )).wait_answer()
+            MessageBox(self, 'Exception', 'error', 'An exception occurred:', traceback.format_exc(),
+                       False, ('Close', )).wait_answer()
         finally:
             self._set_patch_button_enabled(True)
 
