@@ -267,16 +267,21 @@ class MKDDPatcherApp(customtkinter.CTk):
 
         progress_dialog = ProgressDialog(self, 'Patching...')
 
-        def message_callback(title: str, icon: str, text: str):
+        def message_callback(title: str, icon: str, text: str, fixed_width_text: str = ''):
             progress_dialog.close()
-            MessageBox(self, title, icon, text, '', False, ('Close', )).wait_answer()
+            MessageBox(self, title, icon, text, fixed_width_text, False, ('Close', )).wait_answer()
 
-        def prompt_callback(title: str, icon: str, text: str, buttons_labels: 'tuple[str]') -> bool:
-            return MessageBox(self, title, icon, text, '', True, buttons_labels).wait_answer()
+        def prompt_callback(title: str,
+                            icon: str,
+                            text: str,
+                            buttons_labels: 'tuple[str]',
+                            fixed_width_text: str = '') -> bool:
+            return MessageBox(self, title, icon, text, fixed_width_text, True,
+                              buttons_labels).wait_answer()
 
-        def error_callback(title: str, icon: str, text: str):
+        def error_callback(title: str, icon: str, text: str, fixed_width_text: str = ''):
             progress_dialog.close()
-            MessageBox(self, title, icon, text, '', False, ('Close', )).wait_answer()
+            MessageBox(self, title, icon, text, fixed_width_text, False, ('Close', )).wait_answer()
 
         self._set_patch_button_enabled(False)
         self.update()  # Force update, as the patching is done synchronously right away.
