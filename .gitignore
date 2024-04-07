@@ -2,6 +2,7 @@ bin/
 lib/
 lib64
 share/
+src/tools/
 
 __pycache__
 config.ini
