@@ -156,6 +156,145 @@ at `files/MRAM.arc/mram/driver/mario/driver.bmd`.
 You need to create the `race2d.arc` inside the files/ folder, but otherwise you can proceed like mentioned above.
 (i.e. files to be replaced in `race2d.arc` would go into `files/race2d.arc/mram_race2d/...`)
 
+# Custom Audio Waves
+
+Mods can include custom audio waves in the top-level `audio_waves` directory. The file structure is
+as follows:
+
+```
+.
+└── audio_waves
+    ├── SelectVoice
+    ├── Voice
+    └── CommendationVoice
+```
+
+The files in these directories are `.wav` audio files (16-bit mono audio at various sample rates),
+whose name include a number (e.g. `0.wav`, `1.wav`, `2.wav`, `3.wav`, ...). Every number (in each
+directory) corresponds to a certain sound in the game.
+
+For example, to replace Princess Peach's pre-selection voice and selection voice, the following
+audio waves would be provided:
+
+```
+.
+└── audio_waves
+    └── SelectVoice
+        ├── 35.wav     # Pre-selection voice: when the character is first selected
+        └── 36.wav     # Selection voice: when player confirms the character pair
+```
+
+## Selection Voices
+
+The `SelectVoice` directory features a total of 41 different sounds (from `0.wav` to `40.wav`). It
+includes the pre-selection and selection voices for each character, whose mapping is:
+
+|                | Pre-selection | Selection |
+|----------------|:-------------:|:---------:|
+| Mario          |       32      |     3     |
+| Luigi          |       30      |     2     |
+| Princess Peach |       35      |     36    |
+| Daisy          |       19      |     7     |
+| Yoshi          |       40      |     12    |
+| Birdo          |       18      |     11    |
+| Baby Mario     |       15      |     1     |
+| Baby Luigi     |       14      |     13    |
+| Toad           |       25      |     4     |
+| Toadette       |       24      |     5     |
+| Koopa          |       33      |     9     |
+| Paratroopa     |       34      |     10    |
+| Donkey Kong    |       22      |     21    |
+| Diddy Kong     |       20      |     8     |
+| Bowser         |       27      |     26    |
+| Bowser Jr      |       28      |     29    |
+| Wario          |       39      |     38    |
+| Waluigi        |       37      |     6     |
+| Petey Piranha  |       17      |     16    |
+| King Boo       |       23      |     23    |
+
+The other two sounds do not correspond to any character; they are played in the in-game menus:
+
+| Number | Audio Content            | Description                                                                                                                                    |
+|:------:|--------------------------|------------------------------------------------------------------------------------------------------------------------------------------------|
+|    0   | *Welcome to Mario Kart!* | The sound that the game plays when switching between **MONO**, **STEREO**, and **SURROUND** in the **SOUND** option in the **OPTIONS** screen. |
+|   31   | *Let's go!*              | The sound that the game plays when **START GAME** is entered.                                                                                  |
+
+## In-race Voices
+
+The `Voice` directory includes a total of 357 sounds (from `0.wav` to `356.wav`). These are the
+sounds that are played during the race (sliding, attacking, hurting, falling, throwing items, etc.).
+The sounds are *not* evenly distributed among the characters: some characters are assigned more
+sounds than others.
+
+The range for each character is:
+
+|                |     Range    |    Count    |
+|----------------|:------------:|:-----------:|
+| Mario          | `[237, 263]` |      27     |
+| Luigi          | `[212, 236]` |      25     |
+| Princess Peach | `[276, 297]` |      22     |
+| Daisy          | `[ 74,  98]` |      25     |
+| Yoshi          | `[337, 356]` |      20     |
+| Birdo          | `[ 54,  73]` |      20     |
+| Baby Mario     | `[ 25,  47]` |      23     |
+| Baby Luigi     | `[  0,  24]` |      25     |
+| Toad           | `[163, 176]` |      14     |
+| Toadette       | `[143, 162]` |      20     |
+| Koopa          | `[264, 269]` |      6      |
+| Paratroopa     | `[270, 275]` |      6      |
+| Donkey Kong    | `[121, 138]` |      18     |
+| Diddy Kong     | `[ 99, 120]` |      22     |
+| Bowser         | `[177, 191]` |      15     |
+| Bowser Jr      | `[192, 211]` |      20     |
+| Wario          | `[317, 336]` |      20     |
+| Waluigi        | `[298, 316]` |      19     |
+| Petey Piranha  | `[ 48,  53]` |      6      |
+| King Boo       | `[139, 142]` |      4      |
+
+## Commendation Voices
+
+The `CommendationVoice` directory includes a total of 139 sounds (from `0.wav` to `138.wav`). These
+are the sounds that are played at the end of the race, or during the awards ceremony.
+
+The range for each character is:
+
+|                |     Range    |    Count    |
+|----------------|:------------:|:-----------:|
+| Mario          | `[ 43,  50]` |      8      |
+| Luigi          | `[ 35,  42]` |      8      |
+| Princess Peach | `[ 51,  58]` |      8      |
+| Daisy          | `[102, 109]` |      8      |
+| Yoshi          | `[ 89,  94]` |      6      |
+| Birdo          | `[ 21,  27]` |      7      |
+| Baby Mario     | `[  9,  16]` |      8      |
+| Baby Luigi     | `[  1,   8]` |      8      |
+| Toad           | `[ 59,  65]` |      7      |
+| Toadette       | `[ 66,  72]` |      7      |
+| Koopa          | `[110, 113]` |      4      |
+| Paratroopa     | `[114, 118]` |      5      |
+| Donkey Kong    | `[ 28,  34]` |      7      |
+| Diddy Kong     | `[124, 128]` |      5      |
+| Bowser         | `[ 17,  20]` |      4      |
+| Bowser Jr      |              |             |
+| Wario          | `[ 81,  88]` |      8      |
+| Waluigi        | `[ 73,  80]` |      8      |
+| Petey Piranha  | `[ 95, 101]` |      7      |
+| King Boo       | `[119, 123]` |      5      |
+
+Sounds that do not correspond to any character:
+
+|     Range    | Audio Content    |
+|:------------:|------------------|
+| `[  0,   0]` | Crowd cheering   |
+| `[129, 138]` | Pianta sounds    |
+
+> [!NOTE]
+> The first time that the Patcher applies a mod that includes custom audio waves to an ISO, a copy
+> of the retail audio waves will be preserved in `<system's temp dir>/mkdd-retail-audio-waves`. The
+> absolute path to the directory is logged in the console.
+>
+> Modders can listen to the retail `.wav` files to acquire a sense of the audio clips that are going
+> to be replaced (duration, audio content, sample rate, etc.).
 
 # Switching tracks to different track slots
 Sometimes you might have two custom tracks that go over the same track slot. In that case, without
