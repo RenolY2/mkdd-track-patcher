@@ -343,7 +343,7 @@ class Directory(object):
             elif name in self.files:
                 return self.files[name]
             else:
-                raise FileNotFoundError(path)
+                raise FileNotFoundError(f'Unable to find "{path}" in ARC file')
         elif name in self.files:
             raise RuntimeError("File", name, "is a directory in path", path, "which should not happen!")
         else:
@@ -545,7 +545,7 @@ class Archive(object):
 
         if rest is None or rest.strip() == "":
             if dirname != self.root.name:
-                raise FileNotFoundError(path)
+                raise FileNotFoundError(f'Unable to find "{path}" in ARC file')
             else:
                 return self.root
         else:
