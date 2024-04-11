@@ -2,19 +2,20 @@ import os
 import json
 import struct
 import sys
+import tempfile
+import textwrap
 import zipfile
 import pathlib
 import logging
 import configparser
 from io import BytesIO
 
-
+from . import baa
 from .gcm import GCM
 from .dolreader import *
-from .readbsft import BSFT
 from .zip_helper import ZipToIsoPatcher
 from .conflict_checker import Conflicts
-from .rarc import Archive, write_pad32, write_uint32
+from .rarc import Archive
 from .track_mapping import music_mapping, arc_mapping, file_mapping, bsft, battle_mapping
 from .pybinpatch import DiffPatch, WrongSourceFile
 
@@ -67,36 +68,10 @@ def patch_musicid(arc, new_music):
                 data.seek(0x0)
 
 
-def patch_baa(iso):
-    """Patch GCKart.baa
-
-    Args:
-        iso (file): ISO gamefile
+def patch_audio_streams(bsft_filepath, iso):
     """
-    baa = iso.read_file_data("files/AudioRes/GCKart.baa")
-    baadata = baa.read()
-
-    if b"COURSE_YCIRCUIT_0" in baadata:
-        return # Baa is already patched, nothing to do
-
-    bsftoffset = baadata.find(b"bsft")
-    assert bsftoffset < 0x100
-
-    baa.seek(len(baadata))
-    new_bsft = BSFT()
-    new_bsft.tracks = bsft
-    write_pad32(baa)
-    bsft_offset = baa.tell()
-    new_bsft.write_to_file(baa)
-
-    write_pad32(baa)
-    baa.seek(bsftoffset)
-    magic = baa.read(4)
-    assert magic == b"bsft"
-    write_uint32(baa, bsft_offset)
-    iso.changed_files["files/AudioRes/GCKart.baa"] = baa
-    log.info("patched baa")
-
+    Makes copies of the shared AST files, and writes the new BSFT file to the given destination.
+    """
     copy_if_not_exist(iso, "AudioRes/Stream/COURSE_YCIRCUIT_0.x.32.c4.ast", "AudioRes/Stream/COURSE_CIRCUIT_0.x.32.c4.ast")
     copy_if_not_exist(iso, "AudioRes/Stream/COURSE_MCIRCUIT_0.x.32.c4.ast", "AudioRes/Stream/COURSE_CIRCUIT_0.x.32.c4.ast")
 
@@ -114,7 +89,16 @@ def patch_baa(iso):
     copy_if_not_exist(iso, "AudioRes/Stream/FINALLAP_COLOSSEUM_0.x.32.c4.ast", "AudioRes/Stream/FINALLAP_STADIUM_0.x.32.c4.ast")
     copy_if_not_exist(iso, "AudioRes/Stream/FINALLAP_MOUNTAIN_0.x.32.c4.ast", "AudioRes/Stream/FINALLAP_JUNGLE_0.x.32.c4.ast")
 
-    log.info("Copied ast files")
+    log.info("Copied AST files")
+
+    baa.write_bsft(bsft, bsft_filepath)
+
+    # Although the standalone GCKart.bsft file (next to the GCKart.baa file) is not accessed in the
+    # game, it will be updated too for correctness.
+    with open(bsft_filepath, 'rb') as f:
+        iso.changed_files["files/AudioRes/GCKart.bsft"] = BytesIO(f.read())
+
+    log.info("Patched BSFT")
 
 
 def patch_minimap_dol(dol, track, region, minimap_setting, intended_track=True):
@@ -669,8 +653,26 @@ def patch(
             skipped += 1
         patcher.close()
 
-    if at_least_1_track:
-        patch_baa(iso)
+    baa_modification_required = at_least_1_track
+    if baa_modification_required:
+        with tempfile.TemporaryDirectory(prefix='mkddpatcher_') as tmp_dir:
+            # Unpack BAA file.
+            baa_filepath = os.path.join(tmp_dir, 'GCKart.baa')
+            baa_content_dirpath = os.path.join(tmp_dir, 'BAA_CONTENT')
+            baa_data = iso.read_file_data('files/AudioRes/GCKart.baa').read()
+            with open(baa_filepath, 'wb') as f:
+                f.write(baa_data)
+            baa.unpack_baa(baa_filepath, baa_content_dirpath)
+
+            if at_least_1_track:
+                bsft_filepath = os.path.join(baa_content_dirpath, '8.bsft')
+                assert os.path.isfile(bsft_filepath)
+                patch_audio_streams(bsft_filepath, iso)
+
+            # Repack BAA file.
+            baa.pack_baa(baa_content_dirpath, baa_filepath)
+            with open(baa_filepath, 'rb') as f:
+                iso.changed_files['files/AudioRes/GCKart.baa'] = BytesIO(f.read())
 
     log.info("patches applied")
 
