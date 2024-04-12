@@ -1,3 +1,4 @@
+import glob
 import os
 import json
 import struct
@@ -665,8 +666,9 @@ def patch(
             baa.unpack_baa(baa_filepath, baa_content_dirpath)
 
             if at_least_1_track:
-                bsft_filepath = os.path.join(baa_content_dirpath, '8.bsft')
-                assert os.path.isfile(bsft_filepath)
+                bsft_filenames = glob.glob('*.bsft', root_dir=baa_content_dirpath)
+                assert len(bsft_filenames) == 1, 'Expecting exactly one BSFT file in `GCKart.baa`.'
+                bsft_filepath = os.path.join(baa_content_dirpath, bsft_filenames[0])
                 patch_audio_streams(bsft_filepath, iso)
 
             # Repack BAA file.
