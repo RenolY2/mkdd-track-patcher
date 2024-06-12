@@ -1,5 +1,9 @@
+import atexit
+import collections
+import glob
 import os
 import json
+import shutil
 import struct
 import sys
 import tempfile
@@ -10,7 +14,9 @@ import logging
 import configparser
 from io import BytesIO
 
+from . import audioutils
 from . import baa
+from . import wsystool
 from .gcm import GCM
 from .dolreader import *
 from .zip_helper import ZipToIsoPatcher
@@ -99,6 +105,119 @@ def patch_audio_streams(bsft_filepath, iso):
         iso.changed_files["files/AudioRes/GCKart.bsft"] = BytesIO(f.read())
 
     log.info("Patched BSFT")
+
+
+def patch_audio_waves(audio_waves_tmp_dir: str, baac_filepath: str, iso) -> dict[str, list[str]]:
+    parent_dirpath = os.path.dirname(baac_filepath)
+
+    log.info('Unpacking stock audio waves...')
+
+    if not wsystool.check_wsystool():
+        wsystool.compile_and_install_wsystool()
+
+    # Unpack BAAC file.
+    baac_content_dirpath = os.path.join(parent_dirpath, 'BAAC_CONTENT')
+    baa.unpack_baac(baac_filepath, baac_content_dirpath)
+
+    # Unpack nested BAA files.
+    NESTED_BAA_NAMES = {
+        0: 'SelectVoice',
+        1: 'Voice',
+        2: 'CommendationVoice',
+    }
+    nested_baa_filepaths = []
+    for i in NESTED_BAA_NAMES:
+        nested_baa_filename = f'{i}.baa'
+        nested_baa_filepath = os.path.join(baac_content_dirpath, nested_baa_filename)
+        assert os.path.isfile(nested_baa_filepath)
+        nested_baa_filepaths.append(nested_baa_filepath)
+        nested_baa_content_dirpath = os.path.join(baac_content_dirpath, f'{i}_BAA_CONTENT')
+        baa.unpack_baa(nested_baa_filepath, nested_baa_content_dirpath)
+
+    # Extract AW files.
+    waves_content_dirpath = os.path.join(parent_dirpath, 'WAVES_CONTENT')
+    os.makedirs(waves_content_dirpath)
+    aw_filenames = ('CommendationVoice_0.aw', 'SelectVoice_0.aw', 'Voice_0.aw')
+    for aw_filename in aw_filenames:
+        aw_data = iso.read_file_data('files/AudioRes/Waves/' + aw_filename).read()
+        with open(os.path.join(waves_content_dirpath, aw_filename), 'wb') as f:
+            f.write(aw_data)
+
+    retail_copy_dirpath = os.path.join(tempfile.gettempdir(), 'mkdd-retail-audio-waves')
+    export_waves = not os.path.isdir(retail_copy_dirpath)
+
+    # Process WSYS/AW files.
+    for i, baa_name in NESTED_BAA_NAMES.items():
+        wsys_filepath = os.path.join(baac_content_dirpath, f'{i}_BAA_CONTENT', '0.wsy')
+        assert os.path.isfile(wsys_filepath)
+        wsys_dirpath = os.path.join(parent_dirpath, f'WSYS_{baa_name}')
+        wsystool.unpack_wsys(wsys_filepath, wsys_dirpath, waves_content_dirpath, export_waves)
+
+    if export_waves:
+        # If this is the first run (i.e. the following directory does not exist), store a copy of
+        # the retail audio waves in the system's temporary directory, to allow modders to peruse the
+        # audio waves for follow-up customization.
+        retail_copy_placeholder_dirpath = f'{retail_copy_dirpath}-placeholder'
+        shutil.rmtree(retail_copy_placeholder_dirpath, ignore_errors=True)
+        os.makedirs(retail_copy_placeholder_dirpath)
+        for baa_name in NESTED_BAA_NAMES.values():
+            shutil.copytree(os.path.join(parent_dirpath, f'WSYS_{baa_name}'),
+                            os.path.join(retail_copy_placeholder_dirpath, f'{baa_name}'))
+        os.rename(retail_copy_placeholder_dirpath, retail_copy_dirpath)
+    log.info(f'A copy of the retail audio waves is available in "{retail_copy_dirpath}".')
+
+    log.info('Applying custom audio waves...')
+
+    errors_by_file = {}
+
+    # Apply WAV overrides.
+    for baa_name in NESTED_BAA_NAMES.values():
+        src_dirpath = os.path.join(audio_waves_tmp_dir, baa_name)
+        if not os.path.isdir(src_dirpath):
+            continue
+        wavetable_filepath = os.path.join(parent_dirpath, f'WSYS_{baa_name}', 'wavetable.json')
+        with open(wavetable_filepath, 'r', encoding='utf-8') as f:
+            wavetable = json.load(f)
+        custom_dirpath = os.path.join(parent_dirpath, f'WSYS_{baa_name}', 'custom')
+        assert os.path.isdir(custom_dirpath)
+        for filename in sorted(os.listdir(src_dirpath)):
+            filepath = os.path.join(src_dirpath, filename)
+            wave_number = os.path.splitext(filename)[0]
+            max_sample_rate = int(wavetable[wave_number]['sampleRate'])
+            max_sample_count = int(wavetable[wave_number]['sampleCount'])
+            errors = audioutils.conform_audio_wave(
+                filepath,
+                os.path.join(custom_dirpath, filename),
+                max_sample_rate,
+                max_sample_count,
+            )
+            if errors:
+                errors_by_file[f'{baa_name}/{filename}'] = errors
+
+    # Rebuild WSYS/AW files.
+    for i, baa_name in NESTED_BAA_NAMES.items():
+        wsys_dirpath = os.path.join(parent_dirpath, f'WSYS_{baa_name}')
+        wsys_filepath = os.path.join(baac_content_dirpath, f'{i}_BAA_CONTENT', '0.wsy')
+        wsystool.pack_wsys(wsys_dirpath, wsys_filepath, waves_content_dirpath)
+
+    # Inject modified AW files.
+    for aw_filename in aw_filenames:
+        with open(os.path.join(waves_content_dirpath, aw_filename), 'rb') as f:
+            iso.changed_files['files/AudioRes/Waves/' + aw_filename] = BytesIO(f.read())
+
+    # Repack nested BAA files.
+    for i in NESTED_BAA_NAMES:
+        nested_baa_filename = f'{i}.baa'
+        nested_baa_content_dirpath = os.path.join(baac_content_dirpath, f'{i}_BAA_CONTENT')
+        nested_baa_filepath = os.path.join(baac_content_dirpath, nested_baa_filename)
+        baa.pack_baa(nested_baa_content_dirpath, nested_baa_filepath)
+
+    # Repack BAAC file.
+    baa.pack_baac(nested_baa_filepaths, baac_filepath)
+
+    log.info('Custom audio waves applied.')
+
+    return errors_by_file
 
 
 def patch_minimap_dol(dol, track, region, minimap_setting, intended_track=True):
@@ -295,6 +414,8 @@ def patch(
             region = "US_DEBUG"
 
     at_least_1_track = False
+    audio_waves_tmp_dir = None
+    used_audio_waves = collections.defaultdict(list)
 
     conflicts = Conflicts()
 
@@ -443,6 +564,23 @@ def patch(
                 newarc.seek(0)
 
                 patcher.change_file("files/MRAM.arc", newarc)
+
+            # Extract audio waves from ZIP file and store in temporary location.
+            _, filepaths = patcher.get_file_changes('audio_waves')
+            for filepath in filepaths:
+                used_audio_waves[filepath].append(mod)
+
+                data = patcher.zip_open(f'audio_waves/{filepath}').read()
+
+                if audio_waves_tmp_dir is None:
+                    audio_waves_tmp_dir = tempfile.mkdtemp(prefix='mkddpatcher_')
+                    atexit.register(shutil.rmtree, audio_waves_tmp_dir, True)
+
+                dst_filepath = os.path.join(audio_waves_tmp_dir, filepath)
+                os.makedirs(os.path.dirname(dst_filepath), exist_ok=True)
+
+                with open(dst_filepath, 'wb') as f:
+                    f.write(data)
 
         elif patcher.src_file_exists("trackinfo.ini"):
             at_least_1_track = True
@@ -653,7 +791,28 @@ def patch(
             skipped += 1
         patcher.close()
 
-    baa_modification_required = at_least_1_track
+    # Check whether there are audio wave clashes in mods.
+    audio_wave_clashes = [(filepath, mods) for filepath, mods in used_audio_waves.items()
+                          if len(mods) > 1]
+    if audio_wave_clashes:
+        clashes_list = []
+        for filepath, mods in audio_wave_clashes:
+            mods_list = '\n'.join(f'     ◦ {mod}' for mod in mods)
+            clashes_list.append(f'• {filepath}:\n{mods_list}')
+        clashes_list = '\n\n'.join(clashes_list)
+
+        do_continue = prompt_callback(
+            "Warning", "warning",
+            'The following audio waves have been encountered in multiple mods:\n\n'
+            f'{clashes_list}'
+            "\n\n"
+            "Do you want to continue?",
+            ("No", "Continue; I understand that only last mod's will be used"))
+
+        if not do_continue:
+            return
+
+    baa_modification_required = at_least_1_track or bool(used_audio_waves)
     if baa_modification_required:
         with tempfile.TemporaryDirectory(prefix='mkddpatcher_') as tmp_dir:
             # Unpack BAA file.
@@ -665,9 +824,43 @@ def patch(
             baa.unpack_baa(baa_filepath, baa_content_dirpath)
 
             if at_least_1_track:
-                bsft_filepath = os.path.join(baa_content_dirpath, '8.bsft')
-                assert os.path.isfile(bsft_filepath)
+                bsft_filenames = glob.glob('*.bsft', root_dir=baa_content_dirpath)
+                assert len(bsft_filenames) == 1, 'Expecting exactly one BSFT file in `GCKart.baa`.'
+                bsft_filepath = os.path.join(baa_content_dirpath, bsft_filenames[0])
                 patch_audio_streams(bsft_filepath, iso)
+
+            if used_audio_waves:
+                baac_filenames = glob.glob('*.baac', root_dir=baa_content_dirpath)
+                assert len(baac_filenames) == 1, 'Expecting exactly one BAAC file in `GCKart.baa`.'
+                baac_filepath = os.path.join(baa_content_dirpath, baac_filenames[0])
+
+                audio_errors_by_file = patch_audio_waves(audio_waves_tmp_dir, baac_filepath, iso)
+                if audio_errors_by_file:
+                    audio_errors_by_mod = collections.defaultdict(list)
+                    for filepath, errors in audio_errors_by_file.items():
+                        mod_name = os.path.basename(used_audio_waves[filepath][-1])
+                        errors = '\n'.join(f'          ‣ {error}' for error in errors)
+                        error_message = (f'     ◦ {filepath} had to be reprocessed:'
+                                         '\n'
+                                         f'{errors}')
+                        audio_errors_by_mod[mod_name].append(error_message)
+
+                    error_message = ''
+                    for mod_name, errors in audio_errors_by_mod.items():
+                        if error_message:
+                            error_message += '\n\n'
+                        error_message += '• ' + mod_name + '\n'
+                        error_message += '\n'.join(errors)
+
+                    do_continue = prompt_callback(
+                        'Warning',
+                        'warning',
+                        'The following errors were encountered while processing audio waves:',
+                        ('Abort', 'Continue'),
+                        error_message,
+                    )
+                    if not do_continue:
+                        return
 
             # Repack BAA file.
             baa.pack_baa(baa_content_dirpath, baa_filepath)

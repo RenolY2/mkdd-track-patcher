@@ -197,16 +197,27 @@ class Application(tk.Frame):
         self.quit.pack(side="left")"""
 
     def patch(self):
-        def message_callback(title: str, icon: str, text: str):
+
+        def message_callback(title: str, icon: str, text: str, fixed_width_text: str = ''):
             _ = icon
+            if fixed_width_text:
+                text += '\n\n' + fixed_width_text
             messagebox.showinfo(title, text)
 
-        def prompt_callback(title: str, icon: str, text: str, buttons_labels: 'tuple[str]') -> bool:
+        def prompt_callback(title: str,
+                            icon: str,
+                            text: str,
+                            buttons_labels: 'tuple[str]',
+                            fixed_width_text: str = '') -> bool:
             _ = icon, buttons_labels
+            if fixed_width_text:
+                text += '\n\n' + fixed_width_text
             return messagebox.askyesno(title, text)
 
-        def error_callback(title: str, icon: str, text: str):
+        def error_callback(title: str, icon: str, text: str, fixed_width_text: str = ''):
             _ = icon
+            if fixed_width_text:
+                text += '\n\n' + fixed_width_text
             messagebox.showerror(title, text)
 
         return patcher.patch(
