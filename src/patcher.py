@@ -568,6 +568,20 @@ def patch(
             # Extract audio waves from ZIP file and store in temporary location.
             _, filepaths = patcher.get_file_changes('audio_waves')
             for filepath in filepaths:
+                # Skip unrecognized files and directories.
+                if not filepath.endswith('.wav'):
+                    log.warning('Skipped "%s": unrecognized extension; expecting `.wav`',
+                                f'audio_waves/{filepath}')
+                    continue
+                root_dir = filepath
+                while parent_dir := os.path.dirname(root_dir):
+                    root_dir = parent_dir
+                KNOWN_DIRECTORIES = ('SelectVoice', 'Voice', 'CommendationVoice')
+                if root_dir not in KNOWN_DIRECTORIES:
+                    log.warning('Skipped "%s": unknown root directory; known directories are: %s',
+                                f'audio_waves/{filepath}', ', '.join(KNOWN_DIRECTORIES))
+                    continue
+
                 used_audio_waves[filepath].append(mod)
 
                 data = patcher.zip_open(f'audio_waves/{filepath}').read()
