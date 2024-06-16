@@ -569,20 +569,46 @@ def patch(
             _, filepaths = patcher.get_file_changes('audio_waves')
             for filepath in filepaths:
                 # Skip unrecognized files and directories.
-                if not filepath.endswith('.wav'):
+                filename = os.path.basename(filepath)
+                stem, ext = os.path.splitext(filename)
+                if ext != '.wav':
                     log.warning('Skipped "%s": unrecognized extension; expecting `.wav`',
                                 f'audio_waves/{filepath}')
                     continue
                 root_dir = filepath
                 while parent_dir := os.path.dirname(root_dir):
                     root_dir = parent_dir
-                KNOWN_DIRECTORIES = ('SelectVoice', 'Voice', 'CommendationVoice')
+                KNOWN_DIRECTORIES = {
+                    'SelectVoice': 41,
+                    'Voice': 357,
+                    'CommendationVoice': 139,
+                }
                 if root_dir not in KNOWN_DIRECTORIES:
                     log.warning('Skipped "%s": unknown root directory; known directories are: %s',
-                                f'audio_waves/{filepath}', ', '.join(KNOWN_DIRECTORIES))
+                                f'audio_waves/{filepath}', ', '.join(KNOWN_DIRECTORIES.keys()))
+                    continue
+                if root_dir != os.path.dirname(filepath):
+                    log.warning('Skipped "%s": unrecognized nested directory',
+                                f'audio_waves/{filepath}')
+                    continue
+                try:
+                    wave_index = int(stem)
+                except ValueError:
+                    log.warning('Skipped "%s": unable to parse audio wave index from filename',
+                                f'audio_waves/{filepath}')
+                    continue
+                if wave_index < 0 or KNOWN_DIRECTORIES[root_dir] <= wave_index:
+                    log.warning(
+                        'Skipped "%s": audio wave index `%s` is out of range; expected '
+                        'range is [0, %s]',
+                        f'audio_waves/{filepath}',
+                        wave_index,
+                        KNOWN_DIRECTORIES[root_dir] - 1,
+                    )
                     continue
 
-                used_audio_waves[filepath].append(mod)
+                corrected_filepath = os.path.join(root_dir, f'{wave_index}.wav')
+                used_audio_waves[corrected_filepath].append(mod)
 
                 data = patcher.zip_open(f'audio_waves/{filepath}').read()
 
@@ -590,7 +616,7 @@ def patch(
                     audio_waves_tmp_dir = tempfile.mkdtemp(prefix='mkddpatcher_')
                     atexit.register(shutil.rmtree, audio_waves_tmp_dir, True)
 
-                dst_filepath = os.path.join(audio_waves_tmp_dir, filepath)
+                dst_filepath = os.path.join(audio_waves_tmp_dir, corrected_filepath)
                 os.makedirs(os.path.dirname(dst_filepath), exist_ok=True)
 
                 with open(dst_filepath, 'wb') as f:
