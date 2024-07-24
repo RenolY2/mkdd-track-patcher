@@ -608,7 +608,7 @@ def patch(
                     continue
 
                 corrected_filepath = os.path.join(root_dir, f'{wave_index}.wav')
-                used_audio_waves[corrected_filepath].append(mod)
+                used_audio_waves[corrected_filepath.replace(os.sep, '/')].append(mod)
 
                 data = patcher.zip_open(f'audio_waves/{filepath}').read()
 
