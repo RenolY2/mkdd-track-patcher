@@ -163,10 +163,13 @@ as follows:
 
 ```
 .
-└── audio_waves
-    ├── SelectVoice
-    ├── Voice
-    └── CommendationVoice
+├── audio_waves
+│   ├── SelectVoice
+│   ├── Voice
+│   └── CommendationVoice
+├── files
+│   └── ...
+└── modinfo.ini
 ```
 
 The files in these directories are `.wav` audio files (16-bit mono audio at various sample rates),
@@ -178,10 +181,13 @@ audio waves would be provided:
 
 ```
 .
-└── audio_waves
-    └── SelectVoice
-        ├── 35.wav     # Pre-selection voice: when the character is first selected
-        └── 36.wav     # Selection voice: when player confirms the character pair
+├── audio_waves
+│   └── SelectVoice
+│       ├── 35.wav     # Pre-selection voice: when the character is first selected
+│       └── 36.wav     # Selection voice: when player confirms the character pair
+├── files
+│   └── ...
+└── modinfo.ini
 ```
 
 ## Selection Voices
