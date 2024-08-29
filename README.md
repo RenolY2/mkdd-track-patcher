@@ -296,6 +296,36 @@ Sounds that do not correspond to any character:
 > Modders can listen to the retail `.wav` files to acquire a sense of the audio clips that are going
 > to be replaced (duration, audio content, sample rate, etc.).
 
+# Baking Cheat Codes
+
+Mods can include a companion cheat codes file that contains Action Replay / Gecko codes. The file
+must be placed next to the `modinfo.ini` or `trackinfo.ini` file. Depending on the region, the name
+of the file is:
+
+- `cheatcodes_US.ini`
+- `cheatcodes_PAL.ini`
+- `cheatcodes_JP.ini`
+- `cheatcodes_US_DEBUG.ini`
+
+Normally, mods should provide a cheat codes file for each region, so that the mod exhibits the same
+behavior regardless of the input ISO that the user chooses.
+
+Cheat codes will be baked directly into the DOL file; no code handler will be installed. The
+supported code types are:
+
+- `00______ ________` 8-bit write and fill (only single-byte writes)
+- `02______ ________` 16-bit write and fill
+- `04______ ________` 32-bit write
+- `06______ ________` String write
+
+Cheat codes must be provided in their unencrypted form; the encrypted `____-____-_____` form that is
+often used in Action Replay codes is not supported. Lines that do no start with an alphanumeric
+character will be ignored (e.g. lines starting with `$`, `*`, or  `[...]`).
+
+Conflicts can be produced when two or more mods feature cheat codes that happen to write different
+values to the same memory address. When a conflict is detected during the build, a warning is
+issued, prompting the user to either abort or continue the build process.
+
 # Switching tracks to different track slots
 Sometimes you might have two custom tracks that go over the same track slot. In that case, without
 manual intervention, it's not possible to play both at once. In that case check the trackinfo.ini inside

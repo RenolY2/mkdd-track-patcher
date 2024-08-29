@@ -3,6 +3,7 @@ import collections
 import glob
 import os
 import json
+import re
 import shutil
 import struct
 import sys
@@ -18,7 +19,14 @@ from . import audioutils
 from . import baa
 from . import wsystool
 from .gcm import GCM
-from .dolreader import *
+from .dolreader import (
+    DolFile,
+    read_load_immediate_r0,
+    read_uint32,
+    write_float,
+    write_load_immediate_r0,
+    write_uint32_offset,
+)
 from .zip_helper import ZipToIsoPatcher
 from .conflict_checker import Conflicts
 from .rarc import Archive
@@ -309,6 +317,175 @@ def patch_minimap_dol(dol, track, region, minimap_setting, intended_track=True):
                 write_uint32_offset(dol, 0x60000000, bl_address)
 
 
+CHEAT_CODE_PATTERN = re.compile(r'^([0-9a-fA-F]{8})\s*([0-9a-fA-F]{8})$')
+
+
+def parse_cheat_codes(text: str,
+                      dol: DolFile) -> list[tuple[int, str, int, int, int, int, int, bytes]] | str:
+    cheat_codes = []
+
+    in_string_write = False
+    string_write_pending_lines = 0
+
+    for line_index, line in enumerate(text.split('\n')):
+        line_number = line_index + 1
+
+        line = line.strip()
+        if not line:
+            continue
+
+        if line[0] not in '0123456789abcdefABCEDF':
+            # Skips commented lines that start with $, **, --, etc.
+            continue
+
+        matches = CHEAT_CODE_PATTERN.match(line)
+        if matches is None:
+            return (f'Ill-formed code at line #{line_number}:\n\n{line}\n\n'
+                    'Expected layout is `________ ________` (unencrypted).')
+
+        part1 = int(matches.group(1), base=16)
+        part2 = int(matches.group(2), base=16)
+
+        code_subtype = (part1 & 0b11000000000000000000000000000000) >> 30
+        code_type = (part1 & 0b00111000000000000000000000000000) >> 27
+        data_size = (part1 & 0b00000110000000000000000000000000) >> 25
+        address = 0x80000000 | (part1 & 0b00000001111111111111111111111111)
+        value = part2
+
+        if not in_string_write:
+            if (code_subtype, code_type) != (0, 0):
+                return (f'Unsupported code type at line #{line_number}:\n\n    {line}\n\n'
+                        'Only `00______ ________`, `02______ ________`, `04______ ________`, and '
+                        '`06______ ________` codes are supported.')
+
+            if data_size == 0 and value & 0xFFFFFF00 != 0:
+                return (f'Unsupported 8-bit write at line #{line_number}:\n\n    {line}\n\n'
+                        'The implementation of this code type differs between the Action Replay '
+                        'and Gecko code handler: only single-byte writes are supported.')
+
+            if not dol.is_address_resolvable(address):
+                return (f'Unsupported code at line #{line_number}:\n\n    {line}\n\n'
+                        f'Address 0x{address:08X} cannot be resolved.')
+
+            if data_size == 0:  # 8-bit write & fill
+                size = 1  # We only support single-byte writes
+            elif data_size == 1:  # 16-bit write & fill
+                size = ((value >> 16) + 1) * 16 // 8
+            elif data_size == 2:  # 32-bit write
+                size = 4
+            elif data_size == 3:  # String write
+                size = value
+
+            dol.seek(address)
+            if not dol.can_write_or_read_in_current_section(size):
+                return (f'Unsupported code at line #{line_number}:\n\n    {line}\n\n'
+                        f'Write of {size} bytes at 0x{address:08X} goes beyond the section limit.')
+
+            cheat_codes.append((
+                line_number,
+                line,
+                code_subtype,
+                code_type,
+                data_size,
+                address,
+                value,
+                bytearray(),
+            ))
+
+            if data_size == 3:  # String write
+                in_string_write = True
+                string_write_pending_lines = (value + 7 if value % 8 else value) // 8
+                if not string_write_pending_lines:
+                    return (f'Ill-formed code at line #{line_number}:\n\n    {line}\n\n'
+                            'Detected string write code with 0 lines.')
+        else:
+            cheat_codes[-1][7].extend(struct.pack('>II', part1, part2))
+            string_write_pending_lines -= 1
+            if not string_write_pending_lines:
+                in_string_write = False
+
+    if string_write_pending_lines:
+        return f'Expecting {string_write_pending_lines} more lines in string write code.'
+
+    return cheat_codes
+
+
+def bake_cheat_codes(cheat_codes_filename: str, cheat_codes_by_mod: dict[str, list[tuple]],
+                     dol: DolFile) -> str:
+    conflicts_message = ''
+
+    memory_map = {}
+    reported = set()
+
+    for mod_name, cheat_codes in cheat_codes_by_mod.items():
+        for (line_number, line, code_subtype, code_type, data_size, address, value,
+             string_payload) in cheat_codes:
+
+            assert (code_subtype, code_type) == (0, 0)
+            assert data_size in (0, 1, 2, 3)
+
+            if data_size == 0:  # 8-bit write & fill
+                # NOTE: Action Replay and Gecko treat the multiplier differently: the former uses
+                # all the leftover bytes, whereas the latter uses only the first 2 bytes, leaving
+                # the 3rd leftover byte unused. Therefore, it is not possible to provide unambiguous
+                # support for this code type (unless all bytes are `0x00`, in which case both
+                # implementations are consistent: a single write is to be written).
+                assert value & 0xFFFFFF00 == 0
+                multiplier = 1
+                value = value & 0x000000FF
+                payload = struct.pack('>B', value) * multiplier
+
+            elif data_size == 1:  # 16-bit write & fill
+                multiplier = (value >> 16) + 1
+                value = value & 0x0000FFFF
+                payload = struct.pack('>H', value) * multiplier
+
+            elif data_size == 2:  # 32-bit write
+                payload = struct.pack('>I', value)
+
+            elif data_size == 3:  # String write
+                assert len(string_payload) % 8 == 0
+                payload = string_payload[:value]
+
+                line += '\n...'
+
+            dol.seek(address)
+            dol.write(payload)
+
+            # All bytes in the payload will be inserted in the memory map. If a previous cheat code
+            # has inserted a different value at the address, that's a conflict that must be
+            # reported.
+            for i, byte in enumerate(payload):
+                byte_address = address + i
+                if byte_address not in memory_map:
+                    memory_map[byte_address] = (byte, mod_name, line_number, line)
+                    continue
+
+                other_byte, other_mod_name, other_line_number, other_line = memory_map[byte_address]
+                if other_byte == byte:
+                    continue
+
+                report_key = (mod_name, line_number, line, other_mod_name, other_line_number,
+                              other_line)
+                if report_key in reported:
+                    continue
+                reported.add(report_key)
+
+                if conflicts_message:
+                    conflicts_message += '\n\n'
+
+                conflicts_message += (
+                    f'"{other_mod_name}" ({cheat_codes_filename}) at line #{other_line_number}:'
+                    f'\n'
+                    f'{textwrap.indent(other_line, " " * 4)}'
+                    f'\n'
+                    f'"{mod_name}" ({cheat_codes_filename}) at line #{line_number}:'
+                    f'\n'
+                    f'{textwrap.indent(line, " " * 4)}')
+
+    return conflicts_message
+
+
 def rename_archive(arc, newname, mp):
     """Renames arc file
 
@@ -417,6 +594,9 @@ def patch(
     audio_waves_tmp_dir = None
     used_audio_waves = collections.defaultdict(list)
 
+    cheat_codes_filename = f'cheatcodes_{region}.ini'
+    cheat_codes_text_by_mod = {}
+
     conflicts = Conflicts()
 
     skipped = 0
@@ -488,6 +668,10 @@ def patch(
         log.info(mod)
         mod_name = os.path.basename(mod)
         patcher.set_zip(mod)
+
+        if patcher.src_file_exists(cheat_codes_filename):
+            cheat_codes_bytes = patcher.zip_open(cheat_codes_filename).read()
+            cheat_codes_text_by_mod[mod_name] = cheat_codes_bytes.decode(encoding='utf-8')
 
         if patcher.is_code_patch():
             patcher.close()
@@ -906,6 +1090,40 @@ def patch(
             baa.pack_baa(baa_content_dirpath, baa_filepath)
             with open(baa_filepath, 'rb') as f:
                 iso.changed_files['files/AudioRes/GCKart.baa'] = BytesIO(f.read())
+
+    if cheat_codes_text_by_mod:
+        dol = DolFile(patcher.get_iso_file('sys/main.dol'))
+
+        # Parse cheat codes.
+        cheat_codes_by_mod = {}
+        for mod_name, cheat_codes_text in cheat_codes_text_by_mod.items():
+            cheat_codes = parse_cheat_codes(cheat_codes_text, dol)
+            if isinstance(cheat_codes, str):
+                error_callback(
+                    'Error', 'error',
+                    f'Error while parsing cheat codes in "{mod_name}" ({cheat_codes_filename}):',
+                    f'{cheat_codes}')
+                return
+            cheat_codes_by_mod[mod_name] = cheat_codes
+
+        # Bake cheat codes into DOL file.
+        conflicts_message = bake_cheat_codes(cheat_codes_filename, cheat_codes_by_mod, dol)
+
+        # Report whether conflicts have been encountered (i.e. two cheat codes that attempt to write
+        # different values to the same memory address).
+        if conflicts_message:
+            do_continue = prompt_callback(
+                'Warning',
+                'warning',
+                'The following conflicts were encountered while baking cheat codes:',
+                ('Abort', 'Continue'),
+                conflicts_message,
+            )
+            if not do_continue:
+                return
+
+        dol.get_raw_data().seek(0)
+        patcher.change_file('sys/main.dol', dol.get_raw_data())
 
     log.info("patches applied")
 
