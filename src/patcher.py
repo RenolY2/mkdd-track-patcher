@@ -115,16 +115,23 @@ def patch_audio_waves(audio_waves_tmp_dir: str, baac_filepath: str, iso) -> dict
     if not wsystool.check_wsystool():
         wsystool.compile_and_install_wsystool()
 
-    # Unpack BAAC file.
-    baac_content_dirpath = os.path.join(parent_dirpath, 'BAAC_CONTENT')
-    baa.unpack_baac(baac_filepath, baac_content_dirpath)
-
-    # Unpack nested BAA files.
     NESTED_BAA_NAMES = {
         0: 'SelectVoice',
         1: 'Voice',
         2: 'CommendationVoice',
     }
+    BAA_NAMES = {
+        2: 'NintendoLogo',
+        3: 'SoundEffects',
+        4: 'BGMSamples',
+    }
+    ALL_BAA_NAMES = tuple(NESTED_BAA_NAMES.values()) + tuple(BAA_NAMES.values())
+
+    # Unpack BAAC file.
+    baac_content_dirpath = os.path.join(parent_dirpath, 'BAAC_CONTENT')
+    baa.unpack_baac(baac_filepath, baac_content_dirpath)
+
+    # Unpack nested BAA files.
     nested_baa_filepaths = []
     for i in NESTED_BAA_NAMES:
         nested_baa_filename = f'{i}.baa'
@@ -137,8 +144,15 @@ def patch_audio_waves(audio_waves_tmp_dir: str, baac_filepath: str, iso) -> dict
     # Extract AW files.
     waves_content_dirpath = os.path.join(parent_dirpath, 'WAVES_CONTENT')
     os.makedirs(waves_content_dirpath)
-    aw_filenames = ('CommendationVoice_0.aw', 'SelectVoice_0.aw', 'Voice_0.aw')
-    for aw_filename in aw_filenames:
+    AW_FILENAMES = (
+        'SelectVoice_0.aw',
+        'Voice_0.aw',
+        'CommendationVoice_0.aw',
+        'se00_0.aw',
+        'NintendoLogoMario_0.aw',
+        'bgm_0.aw',
+    )
+    for aw_filename in AW_FILENAMES:
         aw_data = iso.read_file_data('files/AudioRes/Waves/' + aw_filename).read()
         with open(os.path.join(waves_content_dirpath, aw_filename), 'wb') as f:
             f.write(aw_data)
@@ -152,6 +166,11 @@ def patch_audio_waves(audio_waves_tmp_dir: str, baac_filepath: str, iso) -> dict
         assert os.path.isfile(wsys_filepath)
         wsys_dirpath = os.path.join(parent_dirpath, f'WSYS_{baa_name}')
         wsystool.unpack_wsys(wsys_filepath, wsys_dirpath, waves_content_dirpath, export_waves)
+    for i, baa_name in BAA_NAMES.items():
+        wsys_filepath = os.path.join(parent_dirpath, f'{i}.wsy')
+        assert os.path.isfile(wsys_filepath)
+        wsys_dirpath = os.path.join(parent_dirpath, f'WSYS_{baa_name}')
+        wsystool.unpack_wsys(wsys_filepath, wsys_dirpath, waves_content_dirpath, export_waves)
 
     if export_waves:
         # If this is the first run (i.e. the following directory does not exist), store a copy of
@@ -160,7 +179,7 @@ def patch_audio_waves(audio_waves_tmp_dir: str, baac_filepath: str, iso) -> dict
         retail_copy_placeholder_dirpath = f'{retail_copy_dirpath}-placeholder'
         shutil.rmtree(retail_copy_placeholder_dirpath, ignore_errors=True)
         os.makedirs(retail_copy_placeholder_dirpath)
-        for baa_name in NESTED_BAA_NAMES.values():
+        for baa_name in ALL_BAA_NAMES:
             shutil.copytree(os.path.join(parent_dirpath, f'WSYS_{baa_name}'),
                             os.path.join(retail_copy_placeholder_dirpath, f'{baa_name}'))
         os.rename(retail_copy_placeholder_dirpath, retail_copy_dirpath)
@@ -171,7 +190,7 @@ def patch_audio_waves(audio_waves_tmp_dir: str, baac_filepath: str, iso) -> dict
     errors_by_file = {}
 
     # Apply WAV overrides.
-    for baa_name in NESTED_BAA_NAMES.values():
+    for baa_name in ALL_BAA_NAMES:
         src_dirpath = os.path.join(audio_waves_tmp_dir, baa_name)
         if not os.path.isdir(src_dirpath):
             continue
@@ -199,9 +218,13 @@ def patch_audio_waves(audio_waves_tmp_dir: str, baac_filepath: str, iso) -> dict
         wsys_dirpath = os.path.join(parent_dirpath, f'WSYS_{baa_name}')
         wsys_filepath = os.path.join(baac_content_dirpath, f'{i}_BAA_CONTENT', '0.wsy')
         wsystool.pack_wsys(wsys_dirpath, wsys_filepath, waves_content_dirpath)
+    for i, baa_name in BAA_NAMES.items():
+        wsys_dirpath = os.path.join(parent_dirpath, f'WSYS_{baa_name}')
+        wsys_filepath = os.path.join(parent_dirpath, f'{i}.wsy')
+        wsystool.pack_wsys(wsys_dirpath, wsys_filepath, waves_content_dirpath)
 
     # Inject modified AW files.
-    for aw_filename in aw_filenames:
+    for aw_filename in AW_FILENAMES:
         with open(os.path.join(waves_content_dirpath, aw_filename), 'rb') as f:
             iso.changed_files['files/AudioRes/Waves/' + aw_filename] = BytesIO(f.read())
 
@@ -582,6 +605,9 @@ def patch(
                     'SelectVoice': 41,
                     'Voice': 357,
                     'CommendationVoice': 139,
+                    'SoundEffects': 181,
+                    'NintendoLogo': 2,
+                    'BGMSamples': 121,
                 }
                 if root_dir not in KNOWN_DIRECTORIES:
                     log.warning('Skipped "%s": unknown root directory; known directories are: %s',
