@@ -127,46 +127,60 @@ def patch_audio_waves(audio_waves_tmp_dir: str, baac_filepath: str, iso) -> dict
     }
     ALL_BAA_NAMES = tuple(NESTED_BAA_NAMES.values()) + tuple(BAA_NAMES.values())
 
-    # Unpack BAAC file.
-    baac_content_dirpath = os.path.join(parent_dirpath, 'BAAC_CONTENT')
-    baa.unpack_baac(baac_filepath, baac_content_dirpath)
+    retail_copy_dirpath = os.path.join(tempfile.gettempdir(), 'mkdd-retail-audio-waves')
+    export_waves = not os.path.isdir(retail_copy_dirpath)
 
-    # Unpack nested BAA files.
-    nested_baa_filepaths = []
-    for i in NESTED_BAA_NAMES:
-        nested_baa_filename = f'{i}.baa'
-        nested_baa_filepath = os.path.join(baac_content_dirpath, nested_baa_filename)
-        assert os.path.isfile(nested_baa_filepath)
-        nested_baa_filepaths.append(nested_baa_filepath)
-        nested_baa_content_dirpath = os.path.join(baac_content_dirpath, f'{i}_BAA_CONTENT')
-        baa.unpack_baa(nested_baa_filepath, nested_baa_content_dirpath)
+    # List of BAA names that have customizations.
+    baa_names_with_customizations = set(os.listdir(audio_waves_tmp_dir))
+    nested_baa_names_with_customizations = set(n for n in baa_names_with_customizations
+                                               if n in NESTED_BAA_NAMES.values())
+
+    if export_waves or nested_baa_names_with_customizations:
+        # Unpack BAAC file.
+        baac_content_dirpath = os.path.join(parent_dirpath, 'BAAC_CONTENT')
+        baa.unpack_baac(baac_filepath, baac_content_dirpath)
+
+        # Unpack nested BAA files.
+        nested_baa_filepaths = []
+        for i, baa_name in NESTED_BAA_NAMES.items():
+            if not export_waves and baa_name not in baa_names_with_customizations:
+                continue
+            nested_baa_filename = f'{i}.baa'
+            nested_baa_filepath = os.path.join(baac_content_dirpath, nested_baa_filename)
+            assert os.path.isfile(nested_baa_filepath)
+            nested_baa_filepaths.append(nested_baa_filepath)
+            nested_baa_content_dirpath = os.path.join(baac_content_dirpath, f'{i}_BAA_CONTENT')
+            baa.unpack_baa(nested_baa_filepath, nested_baa_content_dirpath)
 
     # Extract AW files.
     waves_content_dirpath = os.path.join(parent_dirpath, 'WAVES_CONTENT')
     os.makedirs(waves_content_dirpath)
-    AW_FILENAMES = (
-        'SelectVoice_0.aw',
-        'Voice_0.aw',
-        'CommendationVoice_0.aw',
-        'se00_0.aw',
-        'NintendoLogoMario_0.aw',
-        'bgm_0.aw',
-    )
-    for aw_filename in AW_FILENAMES:
+    AW_FILENAMES = {
+        'SelectVoice': 'SelectVoice_0.aw',
+        'Voice': 'Voice_0.aw',
+        'CommendationVoice': 'CommendationVoice_0.aw',
+        'SoundEffects': 'se00_0.aw',
+        'NintendoLogo': 'NintendoLogoMario_0.aw',
+        'BGMSamples': 'bgm_0.aw',
+    }
+    for baa_name, aw_filename in AW_FILENAMES.items():
+        if not export_waves and baa_name not in baa_names_with_customizations:
+            continue
         aw_data = iso.read_file_data('files/AudioRes/Waves/' + aw_filename).read()
         with open(os.path.join(waves_content_dirpath, aw_filename), 'wb') as f:
             f.write(aw_data)
 
-    retail_copy_dirpath = os.path.join(tempfile.gettempdir(), 'mkdd-retail-audio-waves')
-    export_waves = not os.path.isdir(retail_copy_dirpath)
-
     # Process WSYS/AW files.
     for i, baa_name in NESTED_BAA_NAMES.items():
+        if not export_waves and baa_name not in baa_names_with_customizations:
+            continue
         wsys_filepath = os.path.join(baac_content_dirpath, f'{i}_BAA_CONTENT', '0.wsy')
         assert os.path.isfile(wsys_filepath)
         wsys_dirpath = os.path.join(parent_dirpath, f'WSYS_{baa_name}')
         wsystool.unpack_wsys(wsys_filepath, wsys_dirpath, waves_content_dirpath, export_waves)
     for i, baa_name in BAA_NAMES.items():
+        if not export_waves and baa_name not in baa_names_with_customizations:
+            continue
         wsys_filepath = os.path.join(parent_dirpath, f'{i}.wsy')
         assert os.path.isfile(wsys_filepath)
         wsys_dirpath = os.path.join(parent_dirpath, f'WSYS_{baa_name}')
@@ -215,28 +229,37 @@ def patch_audio_waves(audio_waves_tmp_dir: str, baac_filepath: str, iso) -> dict
 
     # Rebuild WSYS/AW files.
     for i, baa_name in NESTED_BAA_NAMES.items():
+        if baa_name not in baa_names_with_customizations:
+            continue
         wsys_dirpath = os.path.join(parent_dirpath, f'WSYS_{baa_name}')
         wsys_filepath = os.path.join(baac_content_dirpath, f'{i}_BAA_CONTENT', '0.wsy')
         wsystool.pack_wsys(wsys_dirpath, wsys_filepath, waves_content_dirpath)
     for i, baa_name in BAA_NAMES.items():
+        if baa_name not in baa_names_with_customizations:
+            continue
         wsys_dirpath = os.path.join(parent_dirpath, f'WSYS_{baa_name}')
         wsys_filepath = os.path.join(parent_dirpath, f'{i}.wsy')
         wsystool.pack_wsys(wsys_dirpath, wsys_filepath, waves_content_dirpath)
 
     # Inject modified AW files.
-    for aw_filename in AW_FILENAMES:
+    for baa_name, aw_filename in AW_FILENAMES.items():
+        if baa_name not in baa_names_with_customizations:
+            continue
         with open(os.path.join(waves_content_dirpath, aw_filename), 'rb') as f:
             iso.changed_files['files/AudioRes/Waves/' + aw_filename] = BytesIO(f.read())
 
-    # Repack nested BAA files.
-    for i in NESTED_BAA_NAMES:
-        nested_baa_filename = f'{i}.baa'
-        nested_baa_content_dirpath = os.path.join(baac_content_dirpath, f'{i}_BAA_CONTENT')
-        nested_baa_filepath = os.path.join(baac_content_dirpath, nested_baa_filename)
-        baa.pack_baa(nested_baa_content_dirpath, nested_baa_filepath)
+    if nested_baa_names_with_customizations:
+        # Repack nested BAA files.
+        for i, baa_name in NESTED_BAA_NAMES.items():
+            if baa_name not in baa_names_with_customizations:
+                continue
+            nested_baa_filename = f'{i}.baa'
+            nested_baa_content_dirpath = os.path.join(baac_content_dirpath, f'{i}_BAA_CONTENT')
+            nested_baa_filepath = os.path.join(baac_content_dirpath, nested_baa_filename)
+            baa.pack_baa(nested_baa_content_dirpath, nested_baa_filepath)
 
-    # Repack BAAC file.
-    baa.pack_baac(nested_baa_filepaths, baac_filepath)
+        # Repack BAAC file.
+        baa.pack_baac(nested_baa_filepaths, baac_filepath)
 
     log.info('Custom audio waves applied.')
 
