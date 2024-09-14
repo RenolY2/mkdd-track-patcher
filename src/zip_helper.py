@@ -121,14 +121,17 @@ class ZipToIsoPatcher(object):
         return fp
     
     def get_file_changes(self, startpath):
-        startpath = Path(self.root+startpath)
+        if self._is_folder:
+            startpath = Path(os.path.basename(self.zip.filepath) + os.path.sep + startpath)
+        else:
+            startpath = Path(self.root + startpath)
         arcs = {}
         files = []
 
         for filepath in self.zip.namelist():
             filepath_path = Path(filepath)
             if self._is_folder:
-                if self.zip.is_dir(filepath):
+                if self.zip.is_dir(os.path.join(os.path.dirname(self.zip.filepath), filepath)):
                     continue
             else:
                 zippath = zipfile.Path(self.zip, filepath)
