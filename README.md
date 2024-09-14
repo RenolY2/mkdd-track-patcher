@@ -156,6 +156,9 @@ at `files/MRAM.arc/mram/driver/mario/driver.bmd`.
 You need to create the `race2d.arc` inside the files/ folder, but otherwise you can proceed like mentioned above.
 (i.e. files to be replaced in `race2d.arc` would go into `files/race2d.arc/mram_race2d/...`)
 
+Optional: If you add `addfiles = True` to the mod config, the patcher will be able to add files from the mod into the game that didn't already exist. 
+This is only for advanced users who know how to make the game use new files! Currently, this cannot add new directories or new files within the archives.
+
 # Custom Audio Waves
 
 Mods can include custom audio waves in the top-level `audio_waves` directory. The file structure is

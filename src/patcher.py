@@ -731,12 +731,17 @@ def patch(
             config.read_string(str(modinfo.read(), encoding="utf-8"))
             log.info(f"Mod {config['Config']['modname']} by {config['Config']['author']}")
             log.info(f"Description: {config['Config']['description']}")
+            add_files = config['Config'].getboolean("addfiles", fallback=False)
             # patch files
             #log.info(trackzip.namelist())
 
             arcs, files = patcher.get_file_changes("files/")
             for filepath in files:
-                patcher.copy_file("files/" + filepath, "files/" + filepath)
+                print(filepath, add_files)
+                if add_files:
+                    patcher.copy_or_add_file("files/" + filepath, "files/" + filepath)
+                else:
+                    patcher.copy_file("files/" + filepath, "files/" + filepath)
                 conflicts.add_conflict(filepath, mod_name)
 
             for arc, arcfiles in arcs.items():
