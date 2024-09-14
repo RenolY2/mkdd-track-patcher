@@ -737,7 +737,6 @@ def patch(
 
             arcs, files = patcher.get_file_changes("files/")
             for filepath in files:
-                print(filepath, add_files)
                 if add_files:
                     patcher.copy_or_add_file("files/" + filepath, "files/" + filepath)
                 else:
