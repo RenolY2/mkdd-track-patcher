@@ -166,7 +166,10 @@ as follows:
 ├── audio_waves
 │   ├── SelectVoice
 │   ├── Voice
-│   └── CommendationVoice
+│   ├── CommendationVoice
+│   ├── SoundEffects
+│   ├── NintendoLogo
+│   └── BGMSamples
 ├── files
 │   └── ...
 └── modinfo.ini
@@ -293,6 +296,26 @@ Sounds that do not correspond to any character:
 |:------------:|------------------|
 | `[  0,   0]` | Crowd cheering   |
 | `[129, 138]` | Pianta sounds    |
+
+## Sound Effects
+
+The `SoundEffects` directory includes a total of 182 sounds (from `0.wav` to `181.wav`). These
+are the miscellaneous sound effects that are played during the race: item sounds, car honk
+sounds, ambient sounds, terrain sounds, course-specific sounds, etc.
+
+## Nintendo Logo
+
+The `SoundEffects` directory includes a total of 2 sounds (`0.wav` and `1.wav`):
+
+| Number | Audio Content          | Description                         |
+|:------:|------------------------|-------------------------------------|
+|    0   | *Niiiiiinteeeendoooo!* | The first part of the intro sound.  |
+|    1   | *Yoo-hoo!*             | The second part of the intro sound. |
+
+## Background Music Samples
+
+The `BGMSamples` directory includes a total of 121 sounds (from `0.wav` to `120.wav`). These
+are the samples for each of the instruments that are played in the background music.
 
 > [!NOTE]
 > The first time that the Patcher applies a mod that includes custom audio waves to an ISO, a copy
