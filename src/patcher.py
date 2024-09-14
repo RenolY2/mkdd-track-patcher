@@ -33,7 +33,7 @@ from .rarc import Archive
 from .track_mapping import music_mapping, arc_mapping, file_mapping, bsft, battle_mapping
 from .pybinpatch import DiffPatch, WrongSourceFile
 
-__version__ = '2.1.2'
+__version__ = '2.2.0'
 
 logging.basicConfig(stream=sys.stdout, level=logging.INFO, format="> %(message)s")
 log = logging.getLogger(__name__)
