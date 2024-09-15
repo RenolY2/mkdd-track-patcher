@@ -143,7 +143,10 @@ class ZipToIsoPatcher(object):
                 if len(path.parts) == 0:
                     continue 
                 
-                arc = find_arc(path)
+                if filepath.endswith(".arc"):
+                    arc = -1
+                else:
+                    arc = find_arc(path)
                 
                 if arc != -1:
                     if filepath.count(".arc") > 1:
