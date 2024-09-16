@@ -735,7 +735,7 @@ def patch(
             # patch files
             #log.info(trackzip.namelist())
 
-            arcs, files = patcher.get_file_changes("files/")
+            arcs, files = patcher.get_file_changes("files/", add_files=add_files)
             for filepath in files:
                 if add_files:
                     patcher.copy_or_add_file("files/" + filepath, "files/" + filepath)

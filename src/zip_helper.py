@@ -120,7 +120,7 @@ class ZipToIsoPatcher(object):
         fp = self.zip.open(self.root+filepath)
         return fp
     
-    def get_file_changes(self, startpath):
+    def get_file_changes(self, startpath, add_files=False):
         if self._is_folder:
             startpath = Path(os.path.basename(self.zip.filepath) + os.path.sep + startpath)
         else:
@@ -143,7 +143,7 @@ class ZipToIsoPatcher(object):
                 if len(path.parts) == 0:
                     continue 
                 
-                if filepath.endswith(".arc"):
+                if add_files and filepath.endswith(".arc"):
                     arc = -1
                 else:
                     arc = find_arc(path)
