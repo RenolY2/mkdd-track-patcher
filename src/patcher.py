@@ -128,11 +128,14 @@ def patch_audio_waves(audio_waves_tmp_dir: str, baac_filepath: str, iso) -> dict
         1: 'Voice',
         2: 'CommendationVoice',
     }
+    BAA_NAMES_START_INDEX = 1 if '1.wsy' in os.listdir(parent_dirpath) else 2
     BAA_NAMES = {
-        2: 'NintendoLogo',
-        3: 'SoundEffects',
-        4: 'BGMSamples',
+        BAA_NAMES_START_INDEX + 0: 'NintendoLogo',
+        BAA_NAMES_START_INDEX + 1: 'SoundEffects',
+        BAA_NAMES_START_INDEX + 2: 'BGMSamples',
     }
+    first_baa_filepath = os.path.join(parent_dirpath, f'{next(iter(BAA_NAMES.keys()))}.wsy')
+    assert os.path.isfile(first_baa_filepath)
     ALL_BAA_NAMES = tuple(NESTED_BAA_NAMES.values()) + tuple(BAA_NAMES.values())
 
     retail_copy_dirpath = os.path.join(tempfile.gettempdir(), 'mkdd-retail-audio-waves')
