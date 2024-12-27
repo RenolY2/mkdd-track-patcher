@@ -45,7 +45,7 @@ class MKDDPatcherApp(customtkinter.CTk):
             self._last_custom_tracks = config['paths'].get('custom_tracks', '')
             self._last_custom_tracks_picked = config['paths'].get('custom_tracks_picked', '')
 
-        self.title(f'MKDD Patcher {patcher.__version__}')
+        self.title(patcher.APP_NAME)
         if platform.system() == 'Windows':
             self.iconbitmap(get_ico_path('logo'))
         else:
@@ -367,7 +367,11 @@ class MKDDPatcherApp(customtkinter.CTk):
                 ('open' if platform.system() == 'Darwin' else 'xdg-open', config_dir))
 
     def _show_about_dialog(self):
-        text = textwrap.dedent(f'MKDD Patcher {patcher.__version__} by Yoshi2')
+        text = textwrap.dedent(f'{patcher.APP_NAME} by Yoshi2')
+        if patcher.BUILD_TIME and patcher.COMMIT_SHA:
+            text += '\n\n'
+            text += f'Revision: {patcher.COMMIT_SHA}\n'
+            text += f'Build time: {patcher.BUILD_TIME}'
         URL = 'https://github.com/RenolY2/mkdd-track-patcher'
 
         MessageBox(
