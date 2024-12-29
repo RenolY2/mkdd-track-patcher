@@ -249,19 +249,19 @@ if __name__ == "__main__":
     root = tk.Tk()
     root.geometry("350x150")
     def show_about():
-        #about_text = f"MKDD Patcher {patcher.__version__} by Yoshi2"
+        #about_text = f"{patcher.APP_NAME} by Yoshi2"
         #about_text += "\nNew releases: https://github.com/RenolY2/mkdd-track-patcher/releases"
         #about_text += "\nReport bugs at: https://github.com/RenolY2/mkdd-track-patcher/issues"
         #messagebox.showinfo("About", about_text)
         about = tk.Toplevel(root)
         text = tk.Text(about, height=4)
-        text.insert(1.0, f"MKDD Patcher {patcher.__version__} by Yoshi2\n")
+        text.insert(1.0, f"{patcher.APP_NAME} by Yoshi2\n")
         text.insert(2.0, "New releases: https://github.com/RenolY2/mkdd-track-patcher/releases\n")
         text.insert(3.0, "Post suggestions or bug reports at: https://github.com/RenolY2/mkdd-track-patcher/issues")
         text.pack()
         text.configure(state="disabled")
 
-    root.title(f"MKDD Patcher {patcher.__version__}")
+    root.title(patcher.APP_NAME)
     try:
         root.iconbitmap(str(pathlib.Path(__file__).parent.absolute()) + '/resources/icon.ico')
     except:

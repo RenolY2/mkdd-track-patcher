@@ -35,6 +35,18 @@ from .pybinpatch import DiffPatch, WrongSourceFile
 
 __version__ = '2.2.1'
 
+# These constants will be set by the build script on the fly.
+OFFICIAL = False
+COMMIT_SHA = ''
+BUILD_TIME = None
+
+if OFFICIAL:
+    APP_NAME = f'MKDD Patcher {__version__}'
+elif COMMIT_SHA:
+    APP_NAME = f'MKDD Patcher {__version__} ({COMMIT_SHA[:8]})'
+else:
+    APP_NAME = f'MKDD Patcher {__version__} (development)'
+
 logging.basicConfig(stream=sys.stdout, level=logging.INFO, format="> %(message)s")
 log = logging.getLogger(__name__)
 
