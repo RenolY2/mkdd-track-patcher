@@ -1126,7 +1126,26 @@ def patch(
                 assert len(baac_filenames) == 1, 'Expecting exactly one BAAC file in `GCKart.baa`.'
                 baac_filepath = os.path.join(baa_content_dirpath, baac_filenames[0])
 
-                audio_errors_by_file = patch_audio_waves(audio_waves_tmp_dir, baac_filepath, iso)
+                try:
+                    audio_errors_by_file = patch_audio_waves(
+                        audio_waves_tmp_dir,
+                        baac_filepath,
+                        iso,
+                    )
+                except RuntimeError as e:
+                    # Exchange verbose exception message with a more user-friendly description for
+                    # the cases where the .NET installation is missing in the user's system.
+                    exception_message = str(e)
+                    if 'You must install .NET to run this application.' in exception_message:
+                        matches = re.search(r'App host version: (\d\.\d)\.', exception_message)
+                        if matches is not None:
+                            dotnet_version = matches.group(1)
+                            error_message = f'.NET {dotnet_version} is not installed in the system.'
+                            error_callback('Error', 'error', error_message, exception_message)
+                            return
+
+                    raise e
+
                 if audio_errors_by_file:
                     audio_errors_by_mod = collections.defaultdict(list)
                     for filepath, errors in audio_errors_by_file.items():
