@@ -358,6 +358,12 @@ Conflicts can be produced when two or more mods feature cheat codes that happen 
 values to the same memory address. When a conflict is detected during the build, a warning is
 issued, prompting the user to either abort or continue the build process.
 
+> [!NOTE]
+> Cheat codes are often developed with the assumption that a code handler will be installed in the
+> game. Since MKDD Patcher does not install a code handler, it is possible some cheat codes do not
+> function as expected. The only way to verify whether a certain cheat code is supported is to test
+> it.
+
 # Switching tracks to different track slots
 Sometimes you might have two custom tracks that go over the same track slot. In that case, without
 manual intervention, it's not possible to play both at once. In that case check the trackinfo.ini inside
