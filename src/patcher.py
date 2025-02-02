@@ -33,7 +33,7 @@ from .rarc import Archive
 from .track_mapping import music_mapping, arc_mapping, file_mapping, bsft, battle_mapping
 from .pybinpatch import DiffPatch, WrongSourceFile
 
-__version__ = '2.2.1'
+__version__ = '2.3'
 
 # These constants will be set by the build script on the fly.
 OFFICIAL = False
