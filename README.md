@@ -306,6 +306,70 @@ The `SoundEffects` directory includes a total of 182 sounds (from `0.wav` to `18
 are the miscellaneous sound effects that are played during the race: item sounds, car honk
 sounds, ambient sounds, terrain sounds, course-specific sounds, etc.
 
+Note: 
+ "1-4" means 1,2,3,4
+ "1/4" means 1,4
+ "?" marks sound effects that are unknown of use in game. If you know a sound's use, 
+ please remove ? and clarify in description if you can.
+
+|  Range |      Audio Content    | ? |
+|:------:|-----------------------|---|
+|   0-1  | Final Lap             |   |
+|   2-3  | Starman Music         |   |
+|   4-5  | Chain Chomp Music     |   |
+|  6/100 | Pipe Enter&Exit       |   |
+|     7  | Engine                | ? |
+|     8  | Synth Beat            | ? |
+|     9  | Engine                | ? |
+|    10  | Plastic Click         | ? |
+|    11  | Gunshot Explosion     | ? |
+|    12  | RoboBowser Fire       |   |
+|  13-31 | Horns                 |   |
+|    32  | Plastic Click         | ? | 
+|    33  | Fence Floor           | ? |
+|    34  | Ship Horn             |   |
+|    35  | Bowser Laugh          |   |
+|    36  | Sci-fi Warp Noise     | ? |
+|    37  | Shine Sprite          |   |
+|    38  | Engine                | ? |
+|    39  | Wood Road             | ? |
+|    40  | Dial Noise            | ? |
+|    41  | Mountain Surface      |   |
+|    42  | Lava                  | ? |
+|    43  | Firey Sound           | ? |
+|    44  | Lightning             |   |
+|    45  | Waterstream           | ? |
+|    46  | Slosh                 | ? |
+|    47  | Thunder               | ? |
+|    48  | Jet Plane             | ? |
+|    49  | Water Plop            | ? |
+|    50  | Fire                  | ? |
+|    51  | Lightning             | ? |
+|    52  | Bowling Pins Hit      |   |
+|    53  | Driving Skrt          | ? |
+|    54  | Driving               | ? |
+|    55  | Chain Chomp Chains    |   |
+|    56  | Driving               | ? |
+|    57  | Metal Thud            | ? |
+|    58  | Dense Metal Thud      | ? |
+|    59  | Dense Metal Thud      | ? |
+|    60  | Mud                   | ? |
+|    70  | Chain Chomp Bark      |   |
+|    85  | Crowd Clapping        | ? |
+|    86  | People on Rollercoast | ? |
+|    89  | Stars Twinkling RR    |   |
+|    92  | Dinosaur Ambience DDJ |   |
+|    93  | Koopa Shell Bump      |   |
+|    97  | Crowd                 | ? |
+| 103-104| Boat Horns            | ? |
+|   108  | Coin                  |   | 
+|   114  | Dinosaur Scream DDJ   |   | 
+|   120  | Failure Noise         | ? | 
+|   135  | N64 Boo Laugh         | ? |
+| 159-165| Male Noki             |   |
+| 166-181| Male Pianta           |   |
+
+
 ## Nintendo Logo
 
 The `SoundEffects` directory includes a total of 2 sounds (`0.wav` and `1.wav`):
@@ -318,7 +382,50 @@ The `SoundEffects` directory includes a total of 2 sounds (`0.wav` and `1.wav`):
 ## Background Music Samples
 
 The `BGMSamples` directory includes a total of 121 sounds (from `0.wav` to `120.wav`). These
-are the samples for each of the instruments that are played in the background music.
+are the samples for each of the instruments that are played in the background music. This only applies
+for certain songs such as the title screen or main menu, as many of the game's songs are either streamed as
+.ats or part of the sound effect library.
+
+Note: 
+ "1-4" means 1,2,3,4
+ "1/4" means 1,4
+Instruments are only described to what they closely sound like
+
+
+|  Range |        Samples        |
+|:------:|-----------------------|
+|   0-13 | Trumpet               |
+|  14-19 | Drum                  |
+|  20-22 | Horn                  |
+|    23  | Honk                  | 
+|  24-28 | Guitar                | 
+|    29  | Horn                  |
+|  30-32 | Straws                |
+|  33-34 | Cymbal                |
+|  35-36 | Synth                 |
+|  37-42 | Xylophone             |
+|  43-48 | Saxophone             |
+|    49  | Bell                  |
+|  50-54 | Saxophone             | 
+|  55-56 | Whistle               | 
+|  57-60 | Choir                 | 
+|    61  | Drum                  | 
+|  62-64 | Cymbal                | 
+|  65-66 | Drum                  | 
+|    67  | Bass Guitar           | 
+|  68-71 | Church Piano          | 
+|  72-76 | Cymbal                |
+|  77-79 | Bass Drum             |
+|  80-85 | Piano                 |
+|  86-87 | Choir                 |
+|  88-91 | Church Piano          |
+|  92-94 | Saxophone             |
+|  95-96 | Synth                 |
+|  97-101| Trumpet               |
+| 102-109| Bass                  |
+|    110 | Cymbal                |
+| 111-114| Choir                 |
+| 115-120| Horn                  |
 
 > [!NOTE]
 > The first time that the Patcher applies a mod that includes custom audio waves to an ISO, a copy
