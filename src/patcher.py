@@ -919,9 +919,6 @@ def patch(
             else:
                 _, trackimage, trackname = battle_mapping[replace]
 
-            # Copy staff ghost
-            patcher.copy_file("staffghost.ght", "files/StaffGhosts/{}.ght".format(bigname))
-
             # Copy track arc
             track_arc = Archive.from_file(patcher.zip_open("track.arc"))
             if patcher.src_file_exists("track_mp.arc"):
@@ -980,6 +977,10 @@ def patch(
                 bigname = "Luigi"
             if smallname == "luigi2":
                 smallname = "luigi"
+
+            # Copy staff ghost
+            patcher.copy_file("staffghost.ght", "files/StaffGhosts/{}.ght".format(bigname))
+
             # Copy language images
             missing_languages = []
             main_language = config["Config"]["main_language"]
