@@ -568,7 +568,11 @@ def guess_line_count(text: str) -> int:
 
 
 def get_script_dir() -> str:
-    return os.path.dirname(os.path.realpath(__file__))
+    if getattr(sys, 'frozen', False):
+        script_path = sys.executable
+    else:
+        script_path = os.path.realpath(__file__)
+    return os.path.dirname(script_path)
 
 
 def get_config_path() -> str:
