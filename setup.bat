@@ -10,13 +10,15 @@ set "PYTHONPATH="
 python -m venv venv
 call venv/Scripts/activate.bat
 
-rem Install cx_Freeze and its dependencies.
-python -m pip install -r requirements-build-windows.txt
 
 rem Retrieve a fresh checkout from the repository to avoid a potentially
 rem polluted local checkout.
 git clone https://github.com/RenolY2/mkdd-track-patcher.git
 cd mkdd-track-patcher
+
+
+rem Install cx_Freeze and its dependencies.
+python -m pip install -r requirements-build-windows.txt
 
 rem Install the application's dependencies.
 python -m pip install -r requirements.txt
