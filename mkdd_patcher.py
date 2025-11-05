@@ -92,12 +92,7 @@ class MKDDPatcherApp(customtkinter.CTk):
         main_frame = customtkinter.CTkFrame(master=self, fg_color='transparent')
         main_frame.grid_rowconfigure(2, weight=1)
         main_frame.grid_columnconfigure(1, weight=1)
-        main_frame.grid(row=1,
-                        column=0,
-                        columnspan=2,
-                        padx=padding,
-                        pady=(padding, 0),
-                        sticky='nsew')
+        main_frame.grid(row=1, column=0, columnspan=2, padx=padding, pady=padding, sticky='nsew')
 
         input_iso_label = customtkinter.CTkLabel(master=main_frame, text='Input ISO')
         input_iso_label.grid(row=0, column=0, padx=(0, spacing), pady=(0, spacing), sticky='nse')
@@ -111,7 +106,7 @@ class MKDDPatcherApp(customtkinter.CTk):
         self.output_iso_entry = customtkinter.CTkEntry(master=main_frame)
         self.output_iso_entry.grid(row=1, column=1, padx=0, pady=(0, spacing), sticky='nesw')
         self.custom_tracks_box = customtkinter.CTkTextbox(master=main_frame, wrap='none')
-        self.custom_tracks_box.grid(row=2, column=1, padx=0, pady=0, sticky='nesw')
+        self.custom_tracks_box.grid(row=2, column=1, padx=0, pady=(0, spacing), sticky='nesw')
 
         input_iso_button = customtkinter.CTkButton(master=main_frame,
                                                    text='Browse',
@@ -121,20 +116,18 @@ class MKDDPatcherApp(customtkinter.CTk):
                                                     text='Browse',
                                                     command=self.browse_output_iso)
         output_iso_button.grid(row=1, column=2, padx=(spacing, 0), pady=(0, spacing), sticky='ns')
-        custom_tracks_button = customtkinter.CTkButton(master=main_frame,
+        custom_tracks_button_frame = customtkinter.CTkFrame(master=main_frame,
+                                                            fg_color='transparent')
+        custom_tracks_button_frame.grid(row=2, column=2, padx=(spacing, 0), pady=0, sticky='n')
+        custom_tracks_button = customtkinter.CTkButton(master=custom_tracks_button_frame,
                                                        text='Browse',
                                                        command=self.browse_custom_tracks_mods)
-        custom_tracks_button.grid(row=2, column=2, padx=(spacing, 0), pady=0, sticky='n')
+        custom_tracks_button.grid(row=0, column=0, padx=0, pady=(0, spacing), sticky='n')
         self.custom_tracks_button_tool_tip = CTkToolTip.CTkToolTip(custom_tracks_button, delay=0.5)
-
-        self.folder_mode_checkbox = customtkinter.CTkCheckBox(master=self,
+        self.folder_mode_checkbox = customtkinter.CTkCheckBox(master=custom_tracks_button_frame,
                                                               text='Folder Mode',
                                                               command=self._sync_form)
-        self.folder_mode_checkbox.grid(row=2,
-                                       column=0,
-                                       padx=padding,
-                                       pady=(padding, padding),
-                                       sticky='ns')
+        self.folder_mode_checkbox.grid(row=1, column=0, padx=0, pady=0, sticky='nw')
         if 'options' in config and config['options'].getboolean('folder_mode'):
             self.folder_mode_checkbox.select()
         tool_tip = '\n'.join(
@@ -149,8 +142,10 @@ class MKDDPatcherApp(customtkinter.CTk):
                               message=tool_tip,
                               justify='left')
 
-        self.patch_button = customtkinter.CTkButton(master=self, text='Patch', command=self.patch)
-        self.patch_button.grid(row=2, column=1, padx=padding, pady=(padding, padding), sticky='ns')
+        self.patch_button = customtkinter.CTkButton(master=main_frame,
+                                                    text='Patch',
+                                                    command=self.patch)
+        self.patch_button.grid(row=3, column=1, padx=0, pady=0, sticky='nse')
 
         self.input_iso_entry.insert(0, self._last_input_iso)
         self.output_iso_entry.insert(0, self._last_output_iso)
