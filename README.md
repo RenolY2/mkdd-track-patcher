@@ -21,7 +21,7 @@ If the **Input ISO** field was empty, on choosing a MKDD ISO the **Output ISO** 
 is filled in by appending `_new.iso` to the input ISO name.
 Press on **Patch** to create a new ISO with the custom courses and mods patched in.
 
-![MKDD Patcher - Screenshot](https://github.com/RenolY2/mkdd-track-patcher/assets/1853278/184d102e-c208-4db3-b087-0974e7d7fe2a)
+![MKDD Patcher - Screenshot](./screenshot.png)
 
 # Folder mode
 By enabling **Folder Mode**, you will be able to use patches
